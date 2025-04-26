@@ -22,7 +22,7 @@ describe('HomePage', () => {
         //console.log('Rendering HomePage component...');
         const view = render(<HomePage />);
         //console.log('Rendered component:', view.container.innerHTML);
-        expect(screen.getByText('Ask Skye Documentation')).toBeInTheDocument();
+        expect(screen.getByText('Chatbot')).toBeInTheDocument();
     });
 
     it('displays the logo', () => {
