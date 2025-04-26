@@ -70,7 +70,7 @@ Key dependencies include:
 
 ### 4. Configure Environment Variables
 
-Create a `.env.local` file in the project root to configure the Ollama server host:
+Create a `.env` file in the project root to configure the Ollama server host:
 
 ```env
 NEXT_PUBLIC_CHATBOT_BACKEND_HOST=http://localhost:11434
