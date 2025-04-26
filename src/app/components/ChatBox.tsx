@@ -7,6 +7,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
+import SYSTEM_PROMPT from '@/app/config/systemPrompt';
 
 export interface ChatBoxProps {
   title: string;
@@ -79,7 +80,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
       const ollamaMessages = [
         {
           role: 'system',
-          content: 'You are a helpful assistant. Format all responses in Markdown, using appropriate syntax for headings, lists, code blocks, tables, and other elements where applicable. Use single backticks (`) for inline code (e.g., `StringBuilder`) and triple backticks (```) with language identifiers for code blocks (e.g., ```java\ncode\n```).',
+          content: SYSTEM_PROMPT,
         },
         ...messages.map((msg) => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
