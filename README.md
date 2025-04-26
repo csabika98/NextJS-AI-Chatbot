@@ -1,13 +1,16 @@
-# Next.js Chatbot with local Ollama support W/ Tailwind
+# Next.js Chatbot with local Ollama/OpenAI support W/ Tailwind
 
 This is a [Next.js](https://nextjs.org) chatbot application that integrates with the [Ollama](https://ollama.com/) API to provide an interactive chat experience. The app features a modern UI with real-time message streaming, Markdown-formatted bot responses, and support for customizable AI models. It is built with TypeScript, React, and Next.js, styled with Tailwind-inspired CSS, and uses `react-markdown` for rich text rendering.
 
+![Provider](screenshots/5.png)
 ![Chat Interface](screenshots/1.png)
 ![Chat with Messages](screenshots/2.png)
 ![Chat with Messages pt2](screenshots/3.png)
 
+
 ## Features
 
+- **Select Provider**: You can select OpenAI (API_key needed) or local Ollama config
 - **AI-Powered Chat**: Communicates with an Ollama server to generate responses using models like `deepseek-coder-v2:latest`.
 - **Real-Time Streaming**: Displays bot responses as they stream from the Ollama API.
 - **Markdown Formatting**: Renders bot messages with Markdown support for headings, lists, code blocks, tables, bold/italic text, and links.
@@ -71,10 +74,13 @@ Key dependencies include:
 ### 4. Configure Environment Variables
 
 Create a `.env` file in the project root to configure the Ollama server host:
+Also you can set the OpenAI model + your API_KEY
 
 ```env
-NEXT_PUBLIC_CHATBOT_BACKEND_HOST=http://localhost:11434
+OLLAMA_HOST=http://localhost:11434
 NEXT_PUBLIC_CHATBOT_MODEL_NAME=deepseek-coder-v2:latest
+OPENAI_DEFAULT_MODEL=gpt-4.1-2025-04-14
+OPENAI_API_KEY=
 ```
 
 If using a different host or port, update the value accordingly.
@@ -93,7 +99,7 @@ export default SYSTEM_PROMPT;
 ![SYSTEM_PRMOPT](screenshots/4.png)
 
 
-### 5. Run the Development Server
+### 6. Run the Development Server
 
 Start the Next.js development server:
 
@@ -107,7 +113,7 @@ pnpm dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser to see the app.
 
-### 6. Test the Chatbot
+### 7. Test the Chatbot
 
 - Type a message in the input box and click "Send" or press Enter.
 - The chatbot will respond with AI-generated text, formatted in Markdown (e.g., lists, code blocks, tables).

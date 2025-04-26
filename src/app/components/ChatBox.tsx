@@ -21,6 +21,8 @@ export interface ChatBoxProps {
 const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMessages, className }) => {
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [provider, setProvider] = useState<'ollama' | 'openai'>('ollama');
+  const [openAiApiKey, setOpenAiApiKey] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textareaContRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -77,11 +79,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
     }
 
     try {
-      const ollamaMessages = [
-        {
-          role: 'system',
-          content: SYSTEM_PROMPT,
-        },
+      const messagesPayload = [
+        { role: 'system', content: SYSTEM_PROMPT },
         ...messages.map((msg) => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text,
@@ -91,14 +90,18 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
 
       setMessages((prev) => addMessage(prev, createBotMessage('')));
 
+      const requestBody = {
+        model: provider === 'openai' ? 'gpt-4.1' : model,
+        messages: messagesPayload,
+        stream: true,
+        provider,
+        ...(provider === 'openai' && { apiKey: openAiApiKey }),
+      };
+
       const response = await fetch(askEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: model,
-          messages: ollamaMessages,
-          stream: true,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -121,26 +124,43 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
 
         for (const line of lines) {
           if (line.trim()) {
-            try {
-              const data = JSON.parse(line);
-              if (data.message && data.message.content) {
-                fullMessage += data.message.content;
-
-                setMessages((prev) => {
-                  const newMessages = [...prev];
-                  newMessages[newMessages.length - 1] = createBotMessage(fullMessage);
-                  return newMessages;
-                });
+            if (provider === 'openai' && line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.choices && parsed.choices[0].delta.content) {
+                  fullMessage += parsed.choices[0].delta.content;
+                  setMessages((prev) => {
+                    const newMessages = [...prev];
+                    newMessages[newMessages.length - 1] = createBotMessage(fullMessage);
+                    return newMessages;
+                  });
+                }
+              } catch (parseError) {
+                console.error('Error parsing OpenAI stream chunk:', parseError);
               }
-            } catch (parseError) {
-              console.error('Error parsing stream chunk:', parseError);
+            } else if (provider === 'ollama') {
+              try {
+                const data = JSON.parse(line);
+                if (data.message && data.message.content) {
+                  fullMessage += data.message.content;
+                  setMessages((prev) => {
+                    const newMessages = [...prev];
+                    newMessages[newMessages.length - 1] = createBotMessage(fullMessage);
+                    return newMessages;
+                  });
+                }
+              } catch (parseError) {
+                console.error('Error parsing Ollama stream chunk:', parseError);
+              }
             }
           }
         }
       }
     } catch (error) {
       console.error('Error in sendMessage:', error);
-      setMessages((prev) => addMessage(prev, createBotMessage('Error: Could not get a response.')));
+      setMessages((prev) => addMessage(prev, createBotMessage(`Error: ${(error as Error).message}`)));
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +187,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
       const language = match ? match[1] : null;
 
       if (inline || (isSingleLine && !language)) {
-        return  <span className='bg-gray-100 p-4 border border-gray-300 font-mono text-sm overflow-x-auto'>{children}</span>
+        return <span className="bg-gray-100 p-4 border border-gray-300 font-mono text-sm overflow-x-auto">{children}</span>;
       }
 
       const handleCopy = () => {
@@ -178,9 +198,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
       return (
         <div className="my-4 relative">
           {language && (
-            <div className="absolute top-2 left-2 text-xs text-gray-400 font-mono capitalize">
-              {language}
-            </div>
+            <div className="absolute top-2 left-2 text-xs text-gray-400 font-mono capitalize">{language}</div>
           )}
           {language && (
             <button
@@ -237,6 +255,24 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
 
   return (
     <div className={`flex flex-col h-full gap-10 max-h-[660px] justify-between ${className}`}>
+      <div className="flex flex-col gap-4 p-4">
+        <label>
+          Provider:
+          <select
+            value={provider}
+            onChange={(e) => setProvider(e.target.value as 'ollama' | 'openai')}
+            className="ml-2 p-1 border rounded"
+          >
+            <option value="ollama">Ollama</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </label>
+        {provider === 'openai' && (
+          <div className="flex flex-col gap-2">
+       
+          </div>
+        )}
+      </div>
       <div
         className="chatMessages flex flex-col gap-8 p-8 max-h-[570px] overflow-y-auto scroll-smooth"
         ref={chatContainerRef}
@@ -274,7 +310,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
                     h3: ({ children }) => <h3 className="text-xl font-bold mb-4 pb-1 text-black">{children}</h3>,
                     h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 pb-1 text-black">{children}</h1>,
                     h2: ({ children }) => <h2 className="text-xl font-bold mb-4 pb-1 text-black">{children}</h2>,
-                    table: ({ children }) => <table className="border-collapse border border-gray-300 my-4">{children}</table>,
+                    table: ({ children }) => (
+                      <table className="border-collapse border border-gray-300 my-4">{children}</table>
+                    ),
                     th: ({ children }) => <th className="border border-gray-300 px-4 py-2 bg-gray-100">{children}</th>,
                     td: ({ children }) => <td className="border border-gray-300 px-4 py-2">{children}</td>,
                     strong: ({ children }) => <strong className="font-bold">{children}</strong>,

@@ -7,9 +7,8 @@ import { Message } from '@/app/utils/MessageManager';
 
 const HomePage = () => {
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  const backendHost = process.env.NEXT_PUBLIC_CHATBOT_BACKEND_HOST || '';
-  const modelName = process.env.NEXT_PUBLIC_CHATBOT_MODEL_NAME || 'default-model';
-  const askEndpointChat = `${backendHost}/api/chat`;
+  const modelName = process.env.NEXT_PUBLIC_CHATBOT_MODEL_NAME || 'llama3';
+  const askEndpointChat = '/api/chat';
 
   return (
     <div className="w-screen h-screen max-w-full max-h-full">
@@ -27,7 +26,7 @@ const HomePage = () => {
             <div className="flex-1 bg-white shadow-[0_10px_15px_rgba(0,0,0,0.25)] z-[1] rounded-[0_50px_50px_50px] p-8">
               <div className="h-full">
                 <ChatBox
-                  title="Ask Ollama"
+                  title="Ask AI"
                   askEndpoint={askEndpointChat}
                   model={modelName}
                   messages={chatMessages}
