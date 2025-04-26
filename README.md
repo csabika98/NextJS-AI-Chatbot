@@ -79,6 +79,20 @@ NEXT_PUBLIC_CHATBOT_MODEL_NAME=deepseek-coder-v2:latest
 
 If using a different host or port, update the value accordingly.
 
+### 5. SYSTEM PROMPT
+
+Feel free to edit the base prompt.
+
+1. Go to src/app/config/systemPrompt.ts
+
+```ts
+const SYSTEM_PROMPT = `You are a helpful assistant. If i type "test" you should answer "test" only, Format all responses in Markdown, using appropriate syntax for headings, lists, code blocks, tables, and other elements where applicable. Use single backticks (\`) for inline code (e.g., \`StringBuilder\`) and triple backticks (\`\`\`) with language identifiers for code blocks (e.g., \`\`\`java\ncode\n\`\`\`).`;
+
+export default SYSTEM_PROMPT;
+```
+![SYSTEM_PRMOPT](screenshots/4.png)
+
+
 ### 5. Run the Development Server
 
 Start the Next.js development server:
