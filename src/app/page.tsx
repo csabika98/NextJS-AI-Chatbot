@@ -18,49 +18,36 @@ const HomePage = () => {
   const askEndpointChat = '/api/chat';
 
   useEffect(() => {
-    console.log(`Provider changed to: ${provider}`);
     if (provider === 'openai') {
       const openaiModel = process.env.NEXT_PUBLIC_OPENAI_DEFAULT_MODEL;
       const openaiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
-      console.log(`OpenAI Config - Model: ${openaiModel}, API Key: ${openaiApiKey ? 'Set' : 'Missing'}`);
       if (!openaiModel || !openaiApiKey) {
         setError('Missing OpenAI configuration: NEXT_PUBLIC_OPENAI_DEFAULT_MODEL and NEXT_PUBLIC_OPENAI_API_KEY are required.');
         return;
       }
       setModel(openaiModel);
-      console.log(`Set model to OpenAI: ${openaiModel}`);
     } else {
       const ollamaHost = process.env.NEXT_PUBLIC_OLLAMA_HOST;
       const ollamaModel = process.env.NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME;
 
-      console.log(`Ollama Config - Host: ${ollamaHost}, Model: ${ollamaModel}`);
       if (!ollamaHost || !ollamaModel) {
         setError('Missing Ollama configuration: NEXT_PUBLIC_OLLAMA_HOST and NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME are required.');
         return;
       }
       setModel(ollamaModel);
-      console.log(`Set model to Ollama: ${ollamaModel}`);
     }
     setError(null);
     setIsInitialized(true);
   }, [provider]);
 
-  useEffect(() => {
-    console.log(`chatMessages state:`, chatMessages);
-    console.log(`Current provider: ${provider}, messages:`, chatMessages[provider]);
-  }, [chatMessages, provider]);
-
   const handleSetMessages = (newMessages: Message[]) => {
-    console.log(`handleSetMessages called for provider ${provider} with newMessages:`, newMessages);
     setChatMessages((prev) => {
       const updatedMessages = Array.isArray(newMessages) ? newMessages : prev[provider] || [];
-      console.log(`Updating chatMessages[${provider}] to:`, updatedMessages);
       const newState = {
         ...prev,
         [provider]: updatedMessages,
       };
-      console.log(`New chatMessages state:`, newState);
       return newState;
     });
   };

@@ -65,7 +65,6 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (error: any) {
-    console.error('API error:', error);
     const errorMessage = error.message || 'Internal server error';
     if (error.message?.includes('Ollama')) {
       return new Response(JSON.stringify({ error: `Ollama service unavailable: ${errorMessage}` }), { status: 503 });
