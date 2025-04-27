@@ -5,12 +5,6 @@ This is a [Next.js](https://nextjs.org) chatbot application that integrates with
 ![Provider](screenshots/5.png)
 ![Provider](screenshots/6.png)
 
-# old version (ollama only support)
-![Chat Interface](screenshots/1.png)
-![Chat with Messages](screenshots/2.png)
-![Chat with Messages pt2](screenshots/3.png)
-
-
 ## Features
 
 - **Select Provider**: You can select OpenAI (API_key needed) or local Ollama config
