@@ -10,7 +10,6 @@ import remarkGfm from 'remark-gfm';
 import SYSTEM_PROMPT from '@/app/config/systemPrompt';
 
 export interface ChatBoxProps {
-  title: string;
   askEndpoint: string;
   model: string;
   messages: Message[];
@@ -22,7 +21,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [provider, setProvider] = useState<'ollama' | 'openai'>('ollama');
-  const [openAiApiKey, setOpenAiApiKey] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textareaContRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -91,11 +89,10 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
       setMessages((prev) => addMessage(prev, createBotMessage('')));
 
       const requestBody = {
-        model: provider === 'openai' ? 'gpt-4.1' : model,
+        model: provider === 'openai' ? 'gpt-4.1-2025-04-14' : model,
         messages: messagesPayload,
         stream: true,
         provider,
-        ...(provider === 'openai' && { apiKey: openAiApiKey }),
       };
 
       const response = await fetch(askEndpoint, {
@@ -267,11 +264,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
             <option value="openai">OpenAI</option>
           </select>
         </label>
-        {provider === 'openai' && (
-          <div className="flex flex-col gap-2">
-       
-          </div>
-        )}
       </div>
       <div
         className="chatMessages flex flex-col gap-8 p-8 max-h-[570px] overflow-y-auto scroll-smooth"

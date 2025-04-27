@@ -25,14 +25,13 @@ const HomePage = () => {
             </div>
             <div className="flex-1 bg-white shadow-[0_10px_15px_rgba(0,0,0,0.25)] z-[1] rounded-[0_50px_50px_50px] p-8">
               <div className="h-full">
-                <ChatBox
-                  title="Ask AI"
-                  askEndpoint={askEndpointChat}
-                  model={modelName}
-                  messages={chatMessages}
-                  setMessages={setChatMessages}
-                  className="chat-container"
-                />
+              <ChatBox
+                askEndpoint={askEndpointChat}
+                model={modelName}
+                messages={chatMessages}
+                setMessages={setChatMessages}
+                className="chat-container"
+              />
               </div>
             </div>
           </div>

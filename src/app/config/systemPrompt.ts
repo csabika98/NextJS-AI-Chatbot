@@ -1,3 +1,3 @@
-const SYSTEM_PROMPT = `You are a helpful assistant. If i type "test" you should answer "test" only, Format all responses in Markdown, using appropriate syntax for headings, lists, code blocks, tables, and other elements where applicable. Use single backticks (\`) for inline code (e.g., \`StringBuilder\`) and triple backticks (\`\`\`) with language identifiers for code blocks (e.g., \`\`\`java\ncode\n\`\`\`).`;
+const SYSTEM_PROMPT = `You are a helpful assistant.`;
 
 export default SYSTEM_PROMPT;
