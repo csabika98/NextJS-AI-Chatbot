@@ -3,19 +3,25 @@ import { OpenAI } from 'openai';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { model, messages, stream, provider, apiKey } = body;
+  const { model, messages, stream, provider } = body;
 
-  if (!model || !messages || !Array.isArray(messages)) {
-    return new Response(JSON.stringify({ error: 'Invalid request body' }), { status: 400 });
+  if (!model || !messages || !Array.isArray(messages) || !provider) {
+    return new Response(JSON.stringify({ error: 'Invalid request body: model, messages, and provider are required' }), {
+      status: 400,
+    });
   }
 
   try {
     if (provider === 'openai') {
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+      if (!apiKey) {
+        return new Response(JSON.stringify({ error: 'Missing OpenAI API key' }), { status: 500 });
+      }
 
-      const defaultModel = process.env.OPENAI_DEFAULT_MODEL || 'gpt-4.1-2025-04-14';
+      const openai = new OpenAI({ apiKey });
+
       const streamResponse = await openai.chat.completions.create({
-        model: model || defaultModel,
+        model,
         messages,
         stream: true,
       });
@@ -44,17 +50,22 @@ export async function POST(req: NextRequest) {
           Connection: 'keep-alive',
         },
       });
-    } else {
-      // Ollama
-      const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
-      const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+    } else if (provider === 'ollama') {
+      const ollamaHost = process.env.NEXT_PUBLIC_OLLAMA_HOST;
+      if (!ollamaHost) {
+        return new Response(JSON.stringify({ error: 'Missing Ollama host configuration' }), { status: 500 });
+      }
+
+      const response = await fetch(`${ollamaHost}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model, messages, stream }),
       });
 
       if (!response.ok) {
-        return new Response(JSON.stringify({ error: `Ollama error: ${response.status} ${response.statusText}` }), { status: 503 });
+        return new Response(JSON.stringify({ error: `Ollama error: ${response.status} ${response.statusText}` }), {
+          status: 503,
+        });
       }
 
       return new Response(response.body, {
@@ -64,6 +75,8 @@ export async function POST(req: NextRequest) {
           Connection: 'keep-alive',
         },
       });
+    } else {
+      return new Response(JSON.stringify({ error: `Invalid provider: ${provider}` }), { status: 400 });
     }
   } catch (error: any) {
     console.error('API error:', error);
@@ -72,6 +85,8 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: `Ollama service unavailable: ${errorMessage}` }), { status: 503 });
     } else if (error.code === 'invalid_api_key') {
       return new Response(JSON.stringify({ error: 'Invalid OpenAI API key' }), { status: 401 });
+    } else if (error.code === 'model_not_found') {
+      return new Response(JSON.stringify({ error: `Model not found: ${model}` }), { status: 404 });
     } else {
       return new Response(JSON.stringify({ error: errorMessage }), { status: 500 });
     }

@@ -80,11 +80,27 @@ Key dependencies include:
 Create a `.env` file in the project root to configure the Ollama server host:
 Also you can set the OpenAI model + your API_KEY
 
+These two are mandatory for Ollama:
+
 ```env
-OLLAMA_HOST=http://localhost:11434
-NEXT_PUBLIC_CHATBOT_MODEL_NAME=deepseek-coder-v2:latest
-OPENAI_DEFAULT_MODEL=gpt-4.1-2025-04-14
-OPENAI_API_KEY=
+NEXT_PUBLIC_OLLAMA_HOST=http://localhost:11434
+NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME=deepseek-coder-v2:latest
+```
+
+These two are mandatory for OpenAI
+
+```env
+NEXT_PUBLIC_OPENAI_DEFAULT_MODEL=gpt-4.1-2025-04-14
+NEXT_PUBLIC_OPENAI_API_KEY=<your_key>
+```
+
+You can combine them:
+
+```env
+NEXT_PUBLIC_OLLAMA_HOST=http://localhost:11434
+NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME=deepseek-coder-v2:latest
+NEXT_PUBLIC_OPENAI_DEFAULT_MODEL=gpt-4.1-2025-04-14
+NEXT_PUBLIC_OPENAI_API_KEY=
 ```
 
 If using a different host or port, update the value accordingly.

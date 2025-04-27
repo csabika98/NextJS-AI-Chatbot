@@ -1,14 +1,48 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ChatBox from '@/app/components/ChatBox';
 import { Message } from '@/app/utils/MessageManager';
 
 const HomePage = () => {
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  const modelName = process.env.NEXT_PUBLIC_CHATBOT_MODEL_NAME || 'llama3';
+  const [provider, setProvider] = useState<'ollama' | 'openai'>('ollama');
+  const [model, setModel] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
   const askEndpointChat = '/api/chat';
+
+  useEffect(() => {
+    if (provider === 'openai') {
+      const openaiModel = process.env.NEXT_PUBLIC_OPENAI_DEFAULT_MODEL;
+      const openaiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+
+      if (!openaiModel || !openaiApiKey) {
+        setError('Missing OpenAI configuration: NEXT_PUBLIC_OPENAI_DEFAULT_MODEL and NEXT_PUBLIC_OPENAI_API_KEY are required.');
+        return;
+      }
+      setModel(openaiModel);
+    } else {
+      const ollamaHost = process.env.NEXT_PUBLIC_OLLAMA_HOST;
+      const ollamaModel = process.env.NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME;
+
+      if (!ollamaHost || !ollamaModel) {
+        setError('Missing Ollama configuration: NEXT_PUBLIC_OLLAMA_HOST and NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME are required.');
+        return;
+      }
+      setModel(ollamaModel);
+    }
+    setError(null);
+  }, [provider]);
+
+  if (error) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center">
+        <div className="text-red-600 text-xl">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-screen h-screen max-w-full max-h-full">
@@ -25,13 +59,15 @@ const HomePage = () => {
             </div>
             <div className="flex-1 bg-white shadow-[0_10px_15px_rgba(0,0,0,0.25)] z-[1] rounded-[0_50px_50px_50px] p-8">
               <div className="h-full">
-              <ChatBox
-                askEndpoint={askEndpointChat}
-                model={modelName}
-                messages={chatMessages}
-                setMessages={setChatMessages}
-                className="chat-container"
-              />
+                <ChatBox
+                  askEndpoint={askEndpointChat}
+                  model={model}
+                  provider={provider}
+                  setProvider={setProvider} 
+                  messages={chatMessages}
+                  setMessages={setChatMessages}
+                  className="chat-container"
+                />
               </div>
             </div>
           </div>

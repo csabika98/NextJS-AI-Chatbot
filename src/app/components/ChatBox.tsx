@@ -12,15 +12,17 @@ import SYSTEM_PROMPT from '@/app/config/systemPrompt';
 export interface ChatBoxProps {
   askEndpoint: string;
   model: string;
+  provider: 'ollama' | 'openai';
+  setProvider: React.Dispatch<React.SetStateAction<'ollama' | 'openai'>>;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   className: string;
 }
 
-const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMessages, className }) => {
+const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initialProvider, setProvider, messages, setMessages, className }) => {
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [provider, setProvider] = useState<'ollama' | 'openai'>('ollama');
+  const [provider, setLocalProvider] = useState<'ollama' | 'openai'>(initialProvider);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textareaContRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -65,6 +67,11 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
     });
   };
 
+  const handleProviderChange = (newProvider: 'ollama' | 'openai') => {
+    setLocalProvider(newProvider);
+    setProvider(newProvider);
+  };
+
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -89,7 +96,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
       setMessages((prev) => addMessage(prev, createBotMessage('')));
 
       const requestBody = {
-        model: provider === 'openai' ? 'gpt-4.1-2025-04-14' : model,
+        model,
         messages: messagesPayload,
         stream: true,
         provider,
@@ -102,7 +109,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const reader = response.body?.getReader();
@@ -184,7 +192,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
       const language = match ? match[1] : null;
 
       if (inline || (isSingleLine && !language)) {
-        return <span>{children}</span>;
+        return <span><b>{children}</b></span>;
       }
 
       const handleCopy = () => {
@@ -194,9 +202,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
 
       return (
         <div className="my-4 relative">
-          {/* {language && (
-            <div className="absolute top-2 left-2 text-xs text-gray-400 font-mono capitalize">{language}</div>
-          )} */}
           {language && (
             <button
               onClick={handleCopy}
@@ -257,7 +262,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
           Provider:
           <select
             value={provider}
-            onChange={(e) => setProvider(e.target.value as 'ollama' | 'openai')}
+            onChange={(e) => handleProviderChange(e.target.value as 'ollama' | 'openai')}
             className="ml-2 p-1 border rounded"
           >
             <option value="ollama">Ollama</option>
