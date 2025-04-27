@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { addMessage, createUserMessage, createBotMessage, Message } from '@/app/utils/MessageManager';
+import { createUserMessage, createBotMessage, Message } from '@/app/utils/MessageManager';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -15,14 +15,14 @@ export interface ChatBoxProps {
   provider: 'ollama' | 'openai';
   setProvider: React.Dispatch<React.SetStateAction<'ollama' | 'openai'>>;
   messages: Message[];
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  setMessages: (messages: Message[]) => void;
   className: string;
 }
 
-const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initialProvider, setProvider, messages, setMessages, className }) => {
+const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProvider, messages, setMessages, className }) => {
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [provider, setLocalProvider] = useState<'ollama' | 'openai'>(initialProvider);
+  const [localMessages, setLocalMessages] = useState<Message[]>(messages);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textareaContRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -37,6 +37,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
 
   useEffect(() => {
     scrollToBottom();
+  }, [localMessages, messages]);
+
+  useEffect(() => {
+    console.log(`ChatBox messages prop:`, messages);
+    console.log(`ChatBox localMessages:`, localMessages);
+    setLocalMessages(messages);
   }, [messages]);
 
   const scrollToBottom = () => {
@@ -68,14 +74,18 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
   };
 
   const handleProviderChange = (newProvider: 'ollama' | 'openai') => {
-    setLocalProvider(newProvider);
+    console.log(`Changing provider to: ${newProvider}`);
     setProvider(newProvider);
   };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    setMessages((prev) => addMessage(prev, createUserMessage(input)));
+    console.log(`Sending message with provider: ${provider}, model: ${model}`);
+    const userMessage = createUserMessage(input);
+    const newLocalMessages = [...localMessages, userMessage];
+    setLocalMessages(newLocalMessages);
+    setMessages(newLocalMessages);
     setInput('');
     setIsLoading(true);
 
@@ -86,14 +96,17 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
     try {
       const messagesPayload = [
         { role: 'system', content: SYSTEM_PROMPT },
-        ...messages.map((msg) => ({
+        ...newLocalMessages.map((msg) => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text,
         })),
         { role: 'user', content: input },
       ];
 
-      setMessages((prev) => addMessage(prev, createBotMessage('')));
+      const initialBotMessage = createBotMessage('Loading...', provider, model);
+      const newLocalMessagesWithBot = [...newLocalMessages, initialBotMessage];
+      setLocalMessages(newLocalMessagesWithBot);
+      setMessages(newLocalMessagesWithBot);
 
       const requestBody = {
         model,
@@ -102,6 +115,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
         provider,
       };
 
+      console.log(`API Request: ${JSON.stringify(requestBody)}`);
       const response = await fetch(askEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,6 +127,20 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
+      const contentType = response.headers.get('Content-Type');
+      if (contentType && !contentType.includes('text/event-stream')) {
+        const data = await response.json();
+        console.log(`Non-streaming response:`, data);
+        if (data.message && data.message.content) {
+          const botMessage = createBotMessage(data.message.content, provider, model);
+          const updatedMessages = [...newLocalMessages, botMessage];
+          setLocalMessages(updatedMessages);
+          setMessages(updatedMessages);
+        }
+        setIsLoading(false);
+        return;
+      }
+
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No reader available');
 
@@ -121,14 +149,24 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log(`Streaming done. Final bot message: ${fullMessage}`);
+          const botMessage = createBotMessage(fullMessage || 'No response received', provider, model);
+          const updatedMessages = [...newLocalMessages, botMessage];
+          setLocalMessages(updatedMessages);
+          setMessages(updatedMessages);
+          break;
+        }
 
-        buffer += new TextDecoder().decode(value);
+        const chunk = new TextDecoder().decode(value);
+        console.log(`Raw stream chunk: ${chunk}`);
+        buffer += chunk;
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
         for (const line of lines) {
           if (line.trim()) {
+            console.log(`Processing stream line: ${line}`);
             if (provider === 'openai' && line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') break;
@@ -136,28 +174,28 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
                 const parsed = JSON.parse(data);
                 if (parsed.choices && parsed.choices[0].delta.content) {
                   fullMessage += parsed.choices[0].delta.content;
-                  setMessages((prev) => {
-                    const newMessages = [...prev];
-                    newMessages[newMessages.length - 1] = createBotMessage(fullMessage);
-                    return newMessages;
-                  });
+                  const botMessage = createBotMessage(fullMessage, provider, model);
+                  const updatedMessages = [...newLocalMessages, botMessage];
+                  setLocalMessages(updatedMessages);
+                  setMessages(updatedMessages);
                 }
               } catch (parseError) {
-                console.error('Error parsing OpenAI stream chunk:', parseError);
+                console.error(`Error parsing OpenAI stream line: ${parseError}, line: ${data}`);
+                continue;
               }
             } else if (provider === 'ollama') {
               try {
-                const data = JSON.parse(line);
-                if (data.message && data.message.content) {
-                  fullMessage += data.message.content;
-                  setMessages((prev) => {
-                    const newMessages = [...prev];
-                    newMessages[newMessages.length - 1] = createBotMessage(fullMessage);
-                    return newMessages;
-                  });
+                const parsed = JSON.parse(line);
+                if (parsed.message && parsed.message.content) {
+                  fullMessage += parsed.message.content;
+                  const botMessage = createBotMessage(fullMessage, provider, model);
+                  const updatedMessages = [...newLocalMessages, botMessage];
+                  setLocalMessages(updatedMessages);
+                  setMessages(updatedMessages);
                 }
               } catch (parseError) {
-                console.error('Error parsing Ollama stream chunk:', parseError);
+                console.error(`Error parsing Ollama stream line: ${parseError}, line: ${line}`);
+                continue;
               }
             }
           }
@@ -165,7 +203,10 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
       }
     } catch (error) {
       console.error('Error in sendMessage:', error);
-      setMessages((prev) => addMessage(prev, createBotMessage(`Error: ${(error as Error).message}`)));
+      const errorMessage = createBotMessage(`Error: ${(error as Error).message}`, provider, model);
+      const updatedMessages = [...newLocalMessages, errorMessage];
+      setLocalMessages(updatedMessages);
+      setMessages(updatedMessages);
     } finally {
       setIsLoading(false);
     }
@@ -274,61 +315,72 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider: initial
         className="chatMessages flex flex-col gap-8 p-8 max-h-[570px] overflow-y-auto scroll-smooth"
         ref={chatContainerRef}
       >
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={
-              msg.sender === 'user'
-                ? 'userMessage bg-[#6763bb] self-end py-5 px-8 rounded-[50px_50px_0px_50px] max-w-[80%] text-white'
-                : 'botMessage bg-[#e5e5e5] self-start py-5 px-6 rounded-[50px_50px_50px_0] max-w-[80%] text-black'
-            }
-          >
-            {msg.sender === 'bot' ? (
-              <div className="flex flex-col">
-                <ReactMarkdown
-                  remarkPlugins={[remarkBreaks, remarkGfm]}
-                  components={{
-                    ol: ({ children }) => <div className="not-last:pb-6">{children}</div>,
-                    ul: ({ children }) => <div className="not-last:pb-6">{children}</div>,
-                    li: ({ children }) => <div className="pb-1">{children}</div>,
-                    code: CodeComponent,
-                    p: ({ children }) => {
-                      const hasBlockCode = React.Children.toArray(children).some(
-                        (child) =>
-                          React.isValidElement(child) &&
-                          child.type === CodeComponent &&
-                          !(child as React.ReactElement<{ inline?: boolean }>).props.inline
-                      );
-                      if (hasBlockCode) {
-                        return <>{children}</>;
-                      }
-                      return <p className="not-last:pb-1 last:pb-1">{children}</p>;
-                    },
-                    h3: ({ children }) => <h3 className="text-xl font-bold mb-4 pb-1 text-black">{children}</h3>,
-                    h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 pb-1 text-black">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-xl font-bold mb-4 pb-1 text-black">{children}</h2>,
-                    table: ({ children }) => (
-                      <table className="border-collapse border border-gray-300 my-4">{children}</table>
-                    ),
-                    th: ({ children }) => <th className="border border-gray-300 px-4 py-2 bg-gray-100">{children}</th>,
-                    td: ({ children }) => <td className="border border-gray-300 px-4 py-2">{children}</td>,
-                    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                    em: ({ children }) => <em className="italic">{children}</em>,
-                    a: ({ href, children }) => (
-                      <a href={href} className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">
-                        {children}
-                      </a>
-                    ),
-                  }}
-                >
-                  {preprocessMarkdown(msg.text.replace(/\\n/g, '\n'))}
-                </ReactMarkdown>
-              </div>
-            ) : (
-              <div className="text-base text-white">{msg.text}</div>
-            )}
-          </div>
-        ))}
+        {Array.isArray(localMessages) && localMessages.length > 0 ? (
+          localMessages.map((msg, index) => (
+            <div
+              key={index}
+              className={
+                msg.sender === 'user'
+                  ? 'userMessage bg-[#6763bb] self-end py-5 px-8 rounded-[50px_50px_0px_50px] max-w-[80%] text-white'
+                  : msg.provider === 'openai'
+                  ? 'botMessage bg-[#d1e7ff] self-start py-5 px-6 rounded-[50px_50px_50px_0] max-w-[80%] text-black'
+                  : 'botMessage bg-[#d1ffd1] self-start py-5 px-6 rounded-[50px_50px_50px_0] max-w-[80%] text-black'
+              }
+            >
+              {msg.sender === 'bot' ? (
+                <div className="flex flex-col">
+                  <div className="text-xs text-gray-600 mb-2">
+                    {msg.provider === 'openai'
+                      ? `OpenAI (${msg.model || 'Unknown'})`
+                      : `Ollama (${msg.model || 'Unknown'})`}
+                  </div>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkBreaks, remarkGfm]}
+                    components={{
+                      ol: ({ children }) => <div className="not-last:pb-6">{children}</div>,
+                      ul: ({ children }) => <div className="not-last:pb-6">{children}</div>,
+                      li: ({ children }) => <div className="pb-1">{children}</div>,
+                      code: CodeComponent,
+                      p: ({ children }) => {
+                        const hasBlockCode = React.Children.toArray(children).some(
+                          (child) =>
+                            React.isValidElement(child) &&
+                            child.type === CodeComponent &&
+                            !(child as React.ReactElement<{ inline?: boolean }>).props.inline
+                        );
+                        if (hasBlockCode) {
+                          return <>{children}</>;
+                        }
+                        return <p className="not-last:pb-1 last:pb-1">{children}</p>;
+                      },
+                      h3: ({ children }) => <h3 className="text-xl font-bold mb-4 pb-1 text-black">{children}</h3>,
+                      h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 pb-1 text-black">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-xl font-bold mb-4 pb-1 text-black">{children}</h2>,
+                      table: ({ children }) => (
+                        <table className="border-collapse border border-gray-300 my-4">{children}</table>
+                      ),
+                      th: ({ children }) => <th className="border border-gray-300 px-4 py-2 bg-gray-100">{children}</th>,
+                      td: ({ children }) => <td className="border border-gray-300 px-4 py-2">{children}</td>,
+                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      a: ({ href, children }) => (
+                        <a href={href} className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {preprocessMarkdown(msg.text.replace(/\\n/g, '\n'))}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className="text-base text-white">{msg.text}</div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="text-gray-600 text-center">No messages yet.</div>
+        )}
         {isLoading && <div className="loading text-center p-2.5">Loading...</div>}
       </div>
       <div className="flex items-end gap-3 min-h-[50px]">
