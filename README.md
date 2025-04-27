@@ -5,6 +5,7 @@ This is a [Next.js](https://nextjs.org) chatbot application that integrates with
 ![Provider](screenshots/12.png)
 ![Provider](screenshots/13.png)
 ![Provider](screenshots/14.png)
+![Provider](screenshots/15.png)
 
 ## Features
 
