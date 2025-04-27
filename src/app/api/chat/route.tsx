@@ -1,78 +1,78 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { OpenAI } from 'openai';
 
 export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const { model, messages, stream, provider, apiKey } = body;
+
+  if (!model || !messages || !Array.isArray(messages)) {
+    return new Response(JSON.stringify({ error: 'Invalid request body' }), { status: 400 });
+  }
+
   try {
-    const { model, messages, stream, provider } = await req.json();
-    console.log(`API Received: provider=${provider}, model=${model}, messages=`, messages);
-
     if (provider === 'openai') {
-      const apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        return NextResponse.json({ error: 'Missing OpenAI API key' }, { status: 500 });
-      }
+      const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          stream,
-        }),
+      const defaultModel = process.env.OPENAI_DEFAULT_MODEL;
+      const streamResponse = await openai.chat.completions.create({
+        model: model || defaultModel,
+        messages,
+        stream: true,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return NextResponse.json({ error: errorData.error || 'OpenAI API error' }, { status: response.status });
-      }
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          for await (const chunk of streamResponse) {
+            if (chunk.choices[0]?.delta?.content) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ choices: [{ delta: { content: chunk.choices[0].delta.content } }] })}\n\n`
+                )
+              );
+            }
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        },
+      });
 
-      if (stream) {
-        return new NextResponse(response.body, {
-          headers: { 'Content-Type': 'text/event-stream' },
-        });
-      }
-
-      const data = await response.json();
-      return NextResponse.json(data);
-    } else if (provider === 'ollama') {
-      const ollamaHost = process.env.NEXT_PUBLIC_OLLAMA_HOST;
-      if (!ollamaHost) {
-        return NextResponse.json({ error: 'Missing Ollama host configuration' }, { status: 500 });
-      }
-
-      console.log(`Calling Ollama API at ${ollamaHost}/api/chat`);
-      const response = await fetch(`${ollamaHost}/api/chat`, {
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      });
+    } else {
+      const OLLAMA_HOST = process.env.NEXT_PUBLIC_OLLAMA_HOST;
+      const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          messages,
-          stream,
-        }),
+        body: JSON.stringify({ model, messages, stream }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        return NextResponse.json({ error: errorData.error || 'Ollama API error' }, { status: response.status });
+        return new Response(JSON.stringify({ error: `Ollama error: ${response.status} ${response.statusText}` }), { status: 503 });
       }
 
-      if (stream) {
-        console.log(`Streaming Ollama response`);
-        return new NextResponse(response.body, {
-          headers: { 'Content-Type': 'text/event-stream' },
-        });
-      }
-
-      const data = await response.json();
-      return NextResponse.json(data);
-    } else {
-      return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
+      return new Response(response.body, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      });
     }
-  } catch (error) {
-    console.error('API route error:', error);
-    return NextResponse.json({ error: (error as Error).message || 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('API error:', error);
+    const errorMessage = error.message || 'Internal server error';
+    if (error.message?.includes('Ollama')) {
+      return new Response(JSON.stringify({ error: `Ollama service unavailable: ${errorMessage}` }), { status: 503 });
+    } else if (error.code === 'invalid_api_key') {
+      return new Response(JSON.stringify({ error: 'Invalid OpenAI API key' }), { status: 401 });
+    } else {
+      return new Response(JSON.stringify({ error: errorMessage }), { status: 500 });
+    }
   }
 }
