@@ -80,19 +80,19 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-
+  
     console.log(`Sending message with provider: ${provider}, model: ${model}`);
     const userMessage = createUserMessage(input);
     const newLocalMessages = [...localMessages, userMessage];
     setLocalMessages(newLocalMessages);
-    setMessages(newLocalMessages);
+    setMessages(newLocalMessages); 
     setInput('');
     setIsLoading(true);
-
+  
     if (textareaRef.current) {
       textareaRef.current.focus();
     }
-
+  
     try {
       const messagesPayload = [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -102,31 +102,31 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
         })),
         { role: 'user', content: input },
       ];
-
+  
       const initialBotMessage = createBotMessage('Loading...', provider, model);
       const newLocalMessagesWithBot = [...newLocalMessages, initialBotMessage];
       setLocalMessages(newLocalMessagesWithBot);
-      setMessages(newLocalMessagesWithBot);
-
+      setMessages(newLocalMessagesWithBot); 
+  
       const requestBody = {
         model,
         messages: messagesPayload,
         stream: true,
         provider,
       };
-
+  
       console.log(`API Request: ${JSON.stringify(requestBody)}`);
       const response = await fetch(askEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
-
+  
       const contentType = response.headers.get('Content-Type');
       if (contentType && !contentType.includes('text/event-stream')) {
         const data = await response.json();
@@ -140,13 +140,13 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
         setIsLoading(false);
         return;
       }
-
+  
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No reader available');
-
+  
       let fullMessage = '';
       let buffer = '';
-
+  
       while (true) {
         const { value, done } = await reader.read();
         if (done) {
@@ -154,16 +154,16 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
           const botMessage = createBotMessage(fullMessage || 'No response received', provider, model);
           const updatedMessages = [...newLocalMessages, botMessage];
           setLocalMessages(updatedMessages);
-          setMessages(updatedMessages);
+          setMessages(updatedMessages); 
           break;
         }
-
+  
         const chunk = new TextDecoder().decode(value);
         console.log(`Raw stream chunk: ${chunk}`);
         buffer += chunk;
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
-
+  
         for (const line of lines) {
           if (line.trim()) {
             console.log(`Processing stream line: ${line}`);
@@ -175,9 +175,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
                 if (parsed.choices && parsed.choices[0].delta.content) {
                   fullMessage += parsed.choices[0].delta.content;
                   const botMessage = createBotMessage(fullMessage, provider, model);
-                  const updatedMessages = [...newLocalMessages, botMessage];
-                  setLocalMessages(updatedMessages);
-                  setMessages(updatedMessages);
+                  setLocalMessages([...newLocalMessages, botMessage]);
                 }
               } catch (parseError) {
                 console.error(`Error parsing OpenAI stream line: ${parseError}, line: ${data}`);
@@ -188,10 +186,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
                 const parsed = JSON.parse(line);
                 if (parsed.message && parsed.message.content) {
                   fullMessage += parsed.message.content;
+                  // Update only localMessages for interim updates
                   const botMessage = createBotMessage(fullMessage, provider, model);
-                  const updatedMessages = [...newLocalMessages, botMessage];
-                  setLocalMessages(updatedMessages);
-                  setMessages(updatedMessages);
+                  setLocalMessages([...newLocalMessages, botMessage]);
                 }
               } catch (parseError) {
                 console.error(`Error parsing Ollama stream line: ${parseError}, line: ${line}`);
@@ -312,7 +309,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
         </label>
       </div>
       <div
-        className="chatMessages flex flex-col gap-8 p-8 max-h-[570px] overflow-y-auto scroll-smooth"
+        className="chatMessages flex flex-col gap-4 p-4 sm:p-6 md:p-8 overflow-y-auto scroll-smooth bg-white rounded-[20px] h-[60vh] max-h-[60vh]"
         ref={chatContainerRef}
       >
         {Array.isArray(localMessages) && localMessages.length > 0 ? (

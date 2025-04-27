@@ -30,9 +30,47 @@ a {
 }
 
 
-
 body {
 
   background-color: var(--background);
   font-family: "Poppins", serif; 
+}
+
+
+@media (max-width: 640px) {
+  .chatMessages {
+    padding: 1rem;
+  }
+
+  .chat-btn.sendBtn {
+    width: 80px;
+    height: 40px;
+    font-size: 0.875rem;
+  }
+
+  .chat-input-textarea {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .custom-width {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chatMessages > div {
+  animation: fadeIn 0.3s ease-in;
 }
