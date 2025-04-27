@@ -57,15 +57,20 @@ Key dependencies include:
 
 1. **Install Ollama**: Follow the instructions at [Ollama Download](https://ollama.com/download) to install Ollama on your machine.
 2. **Start the Ollama Server**:
+
    ```bash
    ollama serve
    ```
+
    This runs the server at `http://localhost:11434` by default.
 3. **Pull a Model**: Download the desired AI model (e.g., `deepseek-coder-v2:latest`):
+
    ```bash
    ollama pull deepseek-coder-v2:latest
    ```
+
    Verify available models:
+
    ```bash
    ollama list
    ```
@@ -95,24 +100,10 @@ const SYSTEM_PROMPT = `You are a helpful assistant. If i type "test" you should 
 
 export default SYSTEM_PROMPT;
 ```
+
 ![SYSTEM_PRMOPT](screenshots/4.png)
 
-
-### 6. Run the Development Server
-
-Start the Next.js development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-```
-
-Open [http://localhost:5173](http://localhost:5173) in your browser to see the app.
-
-### 7. Test the Chatbot
+### 6. Test the Chatbot
 
 - Type a message in the input box and click "Send" or press Enter.
 - The chatbot will respond with AI-generated text, formatted in Markdown (e.g., lists, code blocks, tables).
@@ -121,19 +112,6 @@ Open [http://localhost:5173](http://localhost:5173) in your browser to see the a
   - "Write a Python function to reverse a string."
   - "Create a table of animals and their habitats."
 
-## Project Structure
-
-Key files and directories:
-
-- `app/page.tsx`: Main page component (`HomePage`) that renders the `ChatBox` component.
-- `app/components/ChatBox.tsx`: Core chat interface with message rendering, input handling, and Ollama API integration.
-- `app/utils/MessageManager.ts`: Utilities for managing chat messages (user and bot).
-- `app/globals.css`: Global styles for the app, including Tailwind-inspired classes.
-- `public/logo.svg`: Logo displayed in the header.
-
-## Customization
-
-Available models can be listed with `ollama list`. Pull new models with `ollama pull <model-name>`.
 
 ### Style Customization
 
@@ -150,35 +128,6 @@ Example: Change the bot message background color in `globals.css`:
   background-color: #d1d5db; /* New color */
 }
 ```
-
-### Add Features
-
-- **Model Selector**: Add a dropdown to `HomePage` to let users choose the Ollama model dynamically.
-- **User Markdown Input**: Enable Markdown rendering for user messages by applying `ReactMarkdown` to `msg.sender === 'user'`.
-- **Syntax Highlighting**: Integrate `react-syntax-highlighter` for code block highlighting.
-
-## Deployment
-
-Deploy the app using the [Vercel Platform](https://vercel.com/new) for the easiest setup:
-
-1. Push your repository to GitHub, GitLab, or Bitbucket.
-2. Import the repository into Vercel.
-3. Set the `NEXT_PUBLIC_CHATBOT_BACKEND_HOST` environment variable in Vercel to point to your Ollama server (e.g., a hosted instance).
-4. Deploy the app.
-
-Note: Ensure your Ollama server is publicly accessible or proxied for production deployments. Alternatively, use a backend proxy to handle API requests.
-
-For more details, see the [Next.js Deployment Documentation](https://nextjs.org/docs/app/building-your-application/deploying).
-
-## Troubleshooting
-
-- **Ollama Server Not Running**: Ensure `ollama serve` is active and accessible at `http://localhost:11434`. Test with:
-  ```bash
-  curl http://localhost:11434/api/tags
-  ```
-- **Model Not Found**: Verify the model is pulled (`ollama list`) and matches the `model` prop in `page.tsx`.
-- **Styles Broken**: Check that `app/globals.css` is imported in `app/layout.tsx` and contains the required classes (`chat-input-textarea`, `chat-btn`, `chat-container`).
-- **No Response**: Inspect the browser console for API errors. Ensure the `askEndpoint` is correct and the Ollama server is reachable.
 
 ## Learn More
 
