@@ -2,8 +2,11 @@
 
 This is a [Next.js](https://nextjs.org) chatbot application that integrates with the [Ollama](https://ollama.com/) API to provide an interactive chat experience. The app features a modern UI with real-time message streaming, Markdown-formatted bot responses, and support for customizable AI models. It is built with TypeScript, React, and Next.js, styled with Tailwind-inspired CSS, and uses `react-markdown` for rich text rendering.
 
+![Provider](screenshots/7.png)
 ![Provider](screenshots/5.png)
 ![Provider](screenshots/6.png)
+![Provider](screenshots/8.png)
+![Provider](screenshots/9.png)
 
 ## Features
 

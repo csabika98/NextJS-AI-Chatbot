@@ -184,7 +184,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
       const language = match ? match[1] : null;
 
       if (inline || (isSingleLine && !language)) {
-        return <span className="bg-gray-100 p-4 border border-gray-300 font-mono text-sm overflow-x-auto">{children}</span>;
+        return <span>{children}</span>;
       }
 
       const handleCopy = () => {
@@ -194,9 +194,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, messages, setMess
 
       return (
         <div className="my-4 relative">
-          {language && (
+          {/* {language && (
             <div className="absolute top-2 left-2 text-xs text-gray-400 font-mono capitalize">{language}</div>
-          )}
+          )} */}
           {language && (
             <button
               onClick={handleCopy}
