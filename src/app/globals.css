@@ -16,7 +16,6 @@
   width: 1230px;
 }
 
-
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #f2f2f2;
@@ -29,23 +28,14 @@ a {
   transition: color 0.2s ease-in-out;
 }
 
-
 body {
-
   background-color: var(--background);
   font-family: "Poppins", serif; 
 }
 
-
 @media (max-width: 640px) {
   .chatMessages {
     padding: 1rem;
-  }
-
-  .chat-btn.sendBtn {
-    width: 80px;
-    height: 40px;
-    font-size: 0.875rem;
   }
 
   .chat-input-textarea {
@@ -73,4 +63,25 @@ body {
 
 .chatMessages > div {
   animation: fadeIn 0.3s ease-in;
+}
+
+@media (width <= 640px) {
+  .chat-btn.sendBtn {
+    font-size: .875rem;
+  }
+}
+
+.tint-green {
+  filter: brightness(0) saturate(100%) invert(47%) sepia(50%) saturate(500%) hue-rotate(110deg) brightness(90%) contrast(90%);
+}
+@media (width >= 40rem) {
+  .sm\:block {
+      display: none;
+  }
+}
+
+@media (width <= 48rem) {
+  .sm\:block {
+      display: block;
+  }
 }

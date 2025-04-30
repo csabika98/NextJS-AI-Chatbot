@@ -70,28 +70,53 @@ const HomePage = () => {
 
   return (
     <div className="w-screen h-screen max-w-full max-h-full flex flex-col">
-      <header className="flex justify-between items-center h-[80px] sm:h-[100px] px-4 sm:px-8 md:px-12 py-4 sm:py-6">
-        <Image src="/logo.svg" alt="logo" width={120} height={60} className="h-[60px] sm:h-[80px]" />
+      <header className="flex justify-between items-center gap-[1rem] h-[80px] sm:h-[100px] px-4 sm:px-8 md:px-12 py-4 sm:py-6">
+        <Image src="/logo.svg" alt="logo" width={120} height={60} className="w-[120px] h-auto hidden sm:block" />
+        <div></div>
       </header>
-      <div className="flex-1">
-        <div className="flex flex-col pt-4 sm:pt-6 pb-8 sm:pb-12 h-full mx-auto w-full max-w-[90%] sm:max-w-[1230px]">
-          <div className="flex h-full flex-col">
-            <div className="flex h-[40px] sm:h-[50px] gap-2 sm:gap-3">
-              <div className="flex justify-center items-center text-base sm:text-xl bg-white min-w-[160px] sm:min-w-[180px] h-full rounded-t-[20px] shadow-md cursor-pointer hover:bg-gray-50 transition-colors duration-200 p-2 sm:p-3">
-                Chatbot
-              </div>
-            </div>
-            <div className="flex-1 bg-white shadow-[0_10px_15px_rgba(0,0,0,0.25)] z-[1] rounded-[0_50px_50px_50px] p-8">
-              <div className="h-full">
-                <ChatBox
-                  askEndpoint={askEndpointChat}
-                  model={model}
-                  provider={provider}
-                  setProvider={setProvider}
-                  messages={chatMessages[provider] || []}
-                  setMessages={handleSetMessages}
-                  className="chat-container"
-                />
+
+      <div className="flex-1 flex flex-col md:flex-row mx-auto w-full max-w-[1530px] px-4 sm:px-8 md:px-12">
+        <div className="hidden md:flex flex-col items-center justify-center w-[200px] md:w-[300px] py-4 relative">
+          <Image
+            src="/logo.svg"
+            alt="Chatbot logo"
+            width={191}
+            height={149}
+            className="w-[150px] md:w-[191px] h-auto mb-4"
+          />
+          <Image
+            src="/gears.png"
+            alt="Gears"
+            width={267}
+            height={380}
+            className="w-[150px] md:w-[200px] h-auto mb-4"
+            style={{ color: 'transparent' }}
+          />
+          <Image
+            src="/robot.png"
+            alt="Robot"
+            width={150}
+            height={150}
+            style={{ color: 'transparent' }}
+            className="w-[120px] md:w-[350px] h-auto relative -mr-8 md:-mr-20"
+          />
+        </div>
+
+        <div className="flex-1 flex flex-col">
+          <div className="flex flex-col pt-4 sm:pt-6 pb-8 sm:pb-12 w-full h-full">
+            <div className="flex h-full flex-col">
+              <div className="flex-1 bg-white shadow-lg rounded-[40px] p-4 sm:p-6 md:p-8">
+                <div className="h-full">
+                  <ChatBox
+                    askEndpoint={askEndpointChat}
+                    model={model}
+                    provider={provider}
+                    setProvider={setProvider}
+                    messages={chatMessages[provider] || []}
+                    setMessages={handleSetMessages}
+                    className="chat-container"
+                  />
+                </div>
               </div>
             </div>
           </div>
