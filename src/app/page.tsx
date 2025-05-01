@@ -104,7 +104,7 @@ const HomePage = () => {
 
         <div className="flex-1 flex flex-col">
           <div className="flex flex-col pt-4 sm:pt-6 pb-8 sm:pb-12 w-full h-full">
-            <div className="flex h-full flex-col">
+            <div className="flex flex-col">
               <div className="flex-1 bg-white shadow-lg rounded-[40px] p-4 sm:p-6 md:p-8">
                 <div className="h-full">
                   <ChatBox

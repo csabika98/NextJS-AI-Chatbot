@@ -28,8 +28,20 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   const [isErrorModalOpen, setIsErrorModalOpen] = useState<boolean>(false);
   const [isAlreadySentModalOpen, setIsAlreadySentModalOpen] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
-  const [feedbackState, setFeedbackState] = useState<{ [key: number]: 'thumbs-up' | 'thumbs-down' | null }>({});
-  const [submittedFeedback, setSubmittedFeedback] = useState<{ [key: number]: boolean }>({});
+  const [feedbackState, setFeedbackState] = useState<{
+    ollama: { [key: number]: 'thumbs-up' | 'thumbs-down' | null };
+    openai: { [key: number]: 'thumbs-up' | 'thumbs-down' | null };
+  }>({
+    ollama: {},
+    openai: {},
+  });
+  const [submittedFeedback, setSubmittedFeedback] = useState<{
+    ollama: { [key: number]: boolean };
+    openai: { [key: number]: boolean };
+  }>({
+    ollama: {},
+    openai: {},
+  });
   const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
   const [localMessages, setLocalMessages] = useState<Message[]>(messages);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -42,7 +54,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
       textareaRef.current.focus();
     }
     textareaResize();
-    hitEnter();
   }, []);
 
   useEffect(() => {
@@ -72,18 +83,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     }
   };
 
-  const hitEnter = () => {
-    const sendBtn = document.querySelector('.chat-btn') as HTMLElement | null;
-    document.querySelectorAll('.chat-input-textarea').forEach((input) => {
-      input.addEventListener('keydown', (e: Event) => {
-        if (e instanceof KeyboardEvent && e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          sendBtn?.click();
-        }
-      });
-    });
-  };
-
   const preprocessMarkdown = (markdown: string): string => {
     const inlineCodeRegex = /```(\w*?)\n?([^\n`]+)\n?```/g;
     return markdown.replace(inlineCodeRegex, (match, lang, content) => {
@@ -97,7 +96,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   const isCodeInput = (text: string): boolean => {
     const trimmed = text.trim();
     if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
-      return true; 
+      return true;
     }
     return (
       trimmed.includes(';') ||
@@ -116,7 +115,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   const formatInput = (text: string): string => {
     const trimmed = text.trim();
     if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
-      return trimmed; 
+      return trimmed;
     }
     if (isCodeInput(trimmed)) {
       return '```javascript\n' + trimmed + '\n```';
@@ -253,24 +252,36 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!isLoading && input.trim()) {
+        sendMessage();
+      }
+    }
+  };
+
   const handleFeedback = (messageIndex: number, feedback: 'thumbs-up' | 'thumbs-down') => {
-    if (submittedFeedback[messageIndex]) {
+    if (submittedFeedback[provider][messageIndex]) {
       return;
     }
     setFeedbackState((prev) => {
-      const currentFeedback = prev[messageIndex];
+      const currentFeedback = prev[provider][messageIndex];
       const newFeedback = currentFeedback === feedback ? null : feedback;
-      return { ...prev, [messageIndex]: newFeedback };
+      return {
+        ...prev,
+        [provider]: { ...prev[provider], [messageIndex]: newFeedback },
+      };
     });
   };
 
   const handleFeedbackPromptClick = (messageIndex: number) => {
     setActiveMessageIndex(messageIndex);
-    if (submittedFeedback[messageIndex]) {
+    if (submittedFeedback[provider][messageIndex]) {
       setIsAlreadySentModalOpen(true);
       return;
     }
-    if (!(messageIndex in feedbackState) || feedbackState[messageIndex] === null) {
+    if (!(messageIndex in feedbackState[provider]) || feedbackState[provider][messageIndex] === null) {
       setIsErrorModalOpen(true);
       return;
     }
@@ -286,7 +297,10 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     if (activeMessageIndex !== null) {
       setSubmittedFeedback((prev) => ({
         ...prev,
-        [activeMessageIndex]: true,
+        [provider]: {
+          ...prev[provider],
+          [activeMessageIndex]: true,
+        },
       }));
     }
     handleModalClose();
@@ -308,25 +322,25 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
   const getModalHeader = () => {
     if (activeMessageIndex === null) return 'Share your feedback';
-    const feedback = feedbackState[activeMessageIndex];
+    const feedback = feedbackState[provider][activeMessageIndex];
     return feedback === 'thumbs-down' ? 'Report an Issue' : 'Share your feedback';
   };
 
   const getTextareaPlaceholder = () => {
     if (activeMessageIndex === null) return 'write your feedback here...';
-    const feedback = feedbackState[activeMessageIndex];
+    const feedback = feedbackState[provider][activeMessageIndex];
     return feedback === 'thumbs-down' ? 'write your issue here...' : 'write your feedback here...';
   };
 
   const getConfirmationMessage = () => {
     if (activeMessageIndex === null) return 'Feedback Sent!';
-    const feedback = feedbackState[activeMessageIndex];
+    const feedback = feedbackState[provider][activeMessageIndex];
     return feedback === 'thumbs-down' ? 'Report Sent!' : 'Feedback Sent!';
   };
 
   const getAlreadySentMessage = () => {
     if (activeMessageIndex === null) return 'Feedback already sent, Thanks';
-    const feedback = feedbackState[activeMessageIndex];
+    const feedback = feedbackState[provider][activeMessageIndex];
     return feedback === 'thumbs-down' ? 'Issue report already sent, Thanks' : 'Feedback already sent, Thanks';
   };
 
@@ -419,6 +433,11 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
   return (
     <div className={`flex flex-col gap-4 justify-between ${className}`}>
+      <style jsx>{`
+        .tint-blue {
+          filter: brightness(0) saturate(100%) invert(60%) sepia(90%) saturate(1500%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+      `}</style>
       <div className="flex flex-col gap-4 p-4">
         <label>
           Provider:
@@ -441,7 +460,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
             <div key={index} className="flex flex-col">
               {msg.sender === 'user' ? (
                 <div
-                  className={`p-4 sm:p-5 md:p-6 rounded-[30px] max-w-[90%] sm:max-w-[80%] transition-opacity duration-300 bg-gradient-to-r from-[#1ea974] to-[#17a267] self-end text-white rounded-tl-[30px] rounded-br-[0]`}
+                  className={`p-4 sm:p-5 md:p-6 rounded-[30px] max-w-[90%] sm:max-w-[80%] transition-opacity duration-300 bg-gradient-to-r from-[#3399FF] to-[#3399FF] self-end text-white rounded-tl-[30px] rounded-br-[0]`}
                 >
                   <div className="text-sm sm:text-base">{msg.text}</div>
                 </div>
@@ -507,33 +526,33 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
                       </button>
                       <button
                         onClick={() => handleFeedback(index, 'thumbs-up')}
-                        disabled={submittedFeedback[index] || false}
+                        disabled={submittedFeedback[provider][index] || false}
                         className={`transition-all duration-200 transform ${
-                          submittedFeedback[index]
+                          submittedFeedback[provider][index]
                             ? 'opacity-60 cursor-not-allowed'
                             : 'hover:scale-125 hover:opacity-100'
                         } ${
-                          feedbackState[index] === 'thumbs-up' ? 'opacity-100 tint-green' : 'opacity-60'
+                          feedbackState[provider][index] === 'thumbs-up' ? 'opacity-100 tint-blue' : 'opacity-60'
                         }`}
                         title="Thumbs Up"
                         aria-label="Thumbs Up"
                       >
-                        <Image src="/tup.png" alt="Thumbs Up" width={16} height={16} className={feedbackState[index] === 'thumbs-up' ? 'tint-green' : ''} />
+                        <Image src="/tup.png" alt="Thumbs Up" width={16} height={16} className={feedbackState[provider][index] === 'thumbs-up' ? 'tint-blue' : ''} />
                       </button>
                       <button
                         onClick={() => handleFeedback(index, 'thumbs-down')}
-                        disabled={submittedFeedback[index] || false}
+                        disabled={submittedFeedback[provider][index] || false}
                         className={`transition-all duration-200 transform ${
-                          submittedFeedback[index]
+                          submittedFeedback[provider][index]
                             ? 'opacity-60 cursor-not-allowed'
                             : 'hover:scale-125 hover:opacity-100'
                         } ${
-                          feedbackState[index] === 'thumbs-down' ? 'opacity-100 tint-green' : 'opacity-60'
+                          feedbackState[provider][index] === 'thumbs-down' ? 'opacity-100 tint-blue' : 'opacity-60'
                         }`}
                         title="Thumbs Down"
                         aria-label="Thumbs Down"
                       >
-                        <Image src="/tdown.png" alt="Thumbs Down" width={16} height={16} className={feedbackState[index] === 'thumbs-down' ? 'tint-green' : ''} />
+                        <Image src="/tdown.png" alt="Thumbs Down" width={16} height={16} className={feedbackState[provider][index] === 'thumbs-down' ? 'tint-blue' : ''} />
                       </button>
                     </div>
                   )}
@@ -565,6 +584,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
             className="chat-input-textarea border-none text-sm sm:text-base text-black resize-none bg-transparent w-full font-[Poppins] min-h-[40px] placeholder:text-gray-500 focus:outline-none"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Write your question here..."
           />
         </div>
@@ -574,7 +594,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
           disabled={isLoading || !input.trim()}
           title="Send"
         >
-          <Image src="/button.png" alt="Send Button" width={120} height={120} />
+          <Image src="/button.png" alt="Send Button" width={100} height={120} />
         </button>
       </div>
 
@@ -600,7 +620,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
             <div className="flex justify-end">
               <button
                 onClick={handleFeedbackSubmit}
-                className="bg-[#1ea974] text-white px-6 py-2 rounded-full hover:bg-[#17a267] transition-colors duration-200"
+                className="bg-[#3399FF] text-white px-6 py-2 rounded-full hover:bg-[#287acc] transition-colors duration-200"
               >
                 Send
               </button>
@@ -625,7 +645,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
             <div className="flex flex-col items-center gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-12 w-12 text-[#17a267]"
+                className="h-12 w-12 text-[#3399FF]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
