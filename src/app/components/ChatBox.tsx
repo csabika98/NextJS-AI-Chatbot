@@ -293,8 +293,37 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     setFeedbackText('');
   };
 
-  const handleFeedbackSubmit = () => {
-    if (activeMessageIndex !== null) {
+  const handleFeedbackSubmit = async () => {
+    if (activeMessageIndex === null) return;
+
+    const feedbackRating = feedbackState[provider][activeMessageIndex];
+    if (!feedbackRating) return;
+
+    const feedbackMessage = localMessages[activeMessageIndex];
+    let precedingQuestion = null;
+    if (activeMessageIndex > 0 && localMessages[activeMessageIndex - 1].sender === 'user') {
+      precedingQuestion = localMessages[activeMessageIndex - 1].text;
+    }
+
+    const feedbackData = {
+      message: feedbackMessage.text,
+      question: precedingQuestion,
+      rating: feedbackRating,
+      feedbackText: feedbackText.trim() || null,
+      operatingSystem: navigator.userAgent,
+    };
+
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(feedbackData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to submit feedback: ${response.statusText}`);
+      }
+
       setSubmittedFeedback((prev) => ({
         ...prev,
         [provider]: {
@@ -302,7 +331,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
           [activeMessageIndex]: true,
         },
       }));
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      setIsErrorModalOpen(true);
+      return;
     }
+
     handleModalClose();
     setIsConfirmationModalOpen(true);
   };
@@ -683,7 +717,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
             </div>
             <div className="flex flex-col items-center gap-2">
               <p className="text-center text-gray-600">
-                Please rate the message first with either a thumbs-up or thumbs-down.
+                {activeMessageIndex !== null
+                  ? 'Please rate the message first with either a thumbs-up or thumbs-down.'
+                  : 'Failed to submit feedback. Please try again.'}
               </p>
             </div>
             <div className="flex justify-center">
