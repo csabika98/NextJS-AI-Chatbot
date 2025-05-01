@@ -25,6 +25,11 @@ This is a [Next.js](https://nextjs.org) chatbot application that integrates with
 - **Git**: For cloning the repository.
 - **npm** or **yarn**: For managing dependencies.
 
+## It has a feedback system
+![image](https://github.com/user-attachments/assets/b091a56a-2e41-49cd-ba26-02008a02a086)
+
+
+
 ## Getting Started
 
 ### 1. Clone the Repository
