@@ -70,20 +70,20 @@ const HomePage = () => {
 
   return (
     <div className="w-screen h-screen max-w-full max-h-full flex flex-col">
-      <header className="flex justify-between items-center gap-[1rem] h-[80px] sm:h-[100px] px-4 sm:px-8 md:px-12 py-4 sm:py-6">
+      {/* <header className="flex justify-between items-center gap-[1rem] h-[80px] sm:h-[100px] px-4 sm:px-8 md:px-12 py-4 sm:py-6">
         <Image src="/logo.svg" alt="logo" width={120} height={60} className="w-[120px] h-auto hidden sm:block" />
         <div></div>
-      </header>
+      </header> */}
 
       <div className="flex-1 flex flex-col md:flex-row mx-auto w-full max-w-[1530px] px-4 sm:px-8 md:px-12">
         <div className="hidden md:flex flex-col items-center justify-center w-[200px] md:w-[300px] py-4 relative">
-          <Image
+          {/* <Image
             src="/logo.svg"
             alt="Chatbot logo"
             width={191}
             height={149}
             className="w-[150px] md:w-[191px] h-auto mb-4"
-          />
+          /> */}
           <Image
             src="/gears.png"
             alt="Gears"

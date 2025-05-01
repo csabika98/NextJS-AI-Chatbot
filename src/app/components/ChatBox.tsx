@@ -628,7 +628,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
           disabled={isLoading || !input.trim()}
           title="Send"
         >
-          <Image src="/button.png" alt="Send Button" width={100} height={120} />
+          <Image src="/button.png" alt="Send Button" width={80} height={80} />
         </button>
       </div>
 
