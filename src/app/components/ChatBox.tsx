@@ -25,8 +25,11 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState<boolean>(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState<boolean>(false);
+  const [isAlreadySentModalOpen, setIsAlreadySentModalOpen] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
   const [feedbackState, setFeedbackState] = useState<{ [key: number]: 'thumbs-up' | 'thumbs-down' | null }>({});
+  const [submittedFeedback, setSubmittedFeedback] = useState<{ [key: number]: boolean }>({});
   const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
   const [localMessages, setLocalMessages] = useState<Message[]>(messages);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -251,6 +254,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   };
 
   const handleFeedback = (messageIndex: number, feedback: 'thumbs-up' | 'thumbs-down') => {
+    if (submittedFeedback[messageIndex]) {
+      return;
+    }
     setFeedbackState((prev) => {
       const currentFeedback = prev[messageIndex];
       const newFeedback = currentFeedback === feedback ? null : feedback;
@@ -260,6 +266,14 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
   const handleFeedbackPromptClick = (messageIndex: number) => {
     setActiveMessageIndex(messageIndex);
+    if (submittedFeedback[messageIndex]) {
+      setIsAlreadySentModalOpen(true);
+      return;
+    }
+    if (!(messageIndex in feedbackState) || feedbackState[messageIndex] === null) {
+      setIsErrorModalOpen(true);
+      return;
+    }
     setIsModalOpen(true);
   };
 
@@ -269,6 +283,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   };
 
   const handleFeedbackSubmit = () => {
+    if (activeMessageIndex !== null) {
+      setSubmittedFeedback((prev) => ({
+        ...prev,
+        [activeMessageIndex]: true,
+      }));
+    }
     handleModalClose();
     setIsConfirmationModalOpen(true);
   };
@@ -276,6 +296,14 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   const handleConfirmationModalClose = () => {
     setIsConfirmationModalOpen(false);
     setActiveMessageIndex(null);
+  };
+
+  const handleErrorModalClose = () => {
+    setIsErrorModalOpen(false);
+  };
+
+  const handleAlreadySentModalClose = () => {
+    setIsAlreadySentModalOpen(false);
   };
 
   const getModalHeader = () => {
@@ -294,6 +322,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     if (activeMessageIndex === null) return 'Feedback Sent!';
     const feedback = feedbackState[activeMessageIndex];
     return feedback === 'thumbs-down' ? 'Report Sent!' : 'Feedback Sent!';
+  };
+
+  const getAlreadySentMessage = () => {
+    if (activeMessageIndex === null) return 'Feedback already sent, Thanks';
+    const feedback = feedbackState[activeMessageIndex];
+    return feedback === 'thumbs-down' ? 'Issue report already sent, Thanks' : 'Feedback already sent, Thanks';
   };
 
   const CodeComponent = React.memo(
@@ -473,7 +507,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
                       </button>
                       <button
                         onClick={() => handleFeedback(index, 'thumbs-up')}
-                        className={`transition-all duration-200 transform hover:scale-125 hover:opacity-100 ${
+                        disabled={submittedFeedback[index] || false}
+                        className={`transition-all duration-200 transform ${
+                          submittedFeedback[index]
+                            ? 'opacity-60 cursor-not-allowed'
+                            : 'hover:scale-125 hover:opacity-100'
+                        } ${
                           feedbackState[index] === 'thumbs-up' ? 'opacity-100 tint-green' : 'opacity-60'
                         }`}
                         title="Thumbs Up"
@@ -483,7 +522,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
                       </button>
                       <button
                         onClick={() => handleFeedback(index, 'thumbs-down')}
-                        className={`transition-all duration-200 transform hover:scale-125 hover:opacity-100 ${
+                        disabled={submittedFeedback[index] || false}
+                        className={`transition-all duration-200 transform ${
+                          submittedFeedback[index]
+                            ? 'opacity-60 cursor-not-allowed'
+                            : 'hover:scale-125 hover:opacity-100'
+                        } ${
                           feedbackState[index] === 'thumbs-down' ? 'opacity-100 tint-green' : 'opacity-60'
                         }`}
                         title="Thumbs Down"
@@ -595,6 +639,64 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
             <div className="flex justify-center">
               <button
                 onClick={handleConfirmationModalClose}
+                className="text-gray-600 underline hover:text-gray-800 transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isErrorModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[400px] flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-center flex-1">Error</h2>
+              <button
+                onClick={handleErrorModalClose}
+                className="text-gray-600 hover:text-gray-800 text-xl"
+                aria-label="Close Modal"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-center text-gray-600">
+                Please rate the message first with either a thumbs-up or thumbs-down.
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <button
+                onClick={handleErrorModalClose}
+                className="text-gray-600 underline hover:text-gray-800 transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAlreadySentModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[400px] flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-center flex-1">Feedback Status</h2>
+              <button
+                onClick={handleAlreadySentModalClose}
+                className="text-gray-600 hover:text-gray-800 text-xl"
+                aria-label="Close Modal"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-center text-gray-600">{getAlreadySentMessage()}</p>
+            </div>
+            <div className="flex justify-center">
+              <button
+                onClick={handleAlreadySentModalClose}
                 className="text-gray-600 underline hover:text-gray-800 transition-colors duration-200"
               >
                 Close
