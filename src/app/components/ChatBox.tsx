@@ -270,9 +270,21 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
   const handleFeedback = useCallback(
     async (messageIndex: number, feedback: 'thumbs-up' | 'thumbs-down') => {
-      if (submittedFeedback[provider][messageIndex]) return;
+      const previousFeedback = feedbackState[provider][messageIndex];
+      const isToggling = previousFeedback === feedback;
 
+      setFeedbackState((prev) => ({
+        ...prev,
+        [provider]: {
+          ...prev[provider],
+          [messageIndex]: isToggling ? null : feedback,
+        },
+      }));
       setRatingError((prev) => ({ ...prev, [messageIndex]: '' }));
+
+      if (isToggling) {
+        return;
+      }
 
       try {
         const response = await fetch('/api/rate', {
@@ -285,28 +297,31 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
           }),
         });
 
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status} ${response.statusText}`);
-        }
+        const data = await response.json();
 
-        setFeedbackState((prev) => {
-          const currentFeedback = prev[provider][messageIndex];
-          const newFeedback = currentFeedback === feedback ? null : feedback;
-          return {
-            ...prev,
-            [provider]: { ...prev[provider], [messageIndex]: newFeedback },
-          };
-        });
-      } catch (error) {
-        console.error('Error submitting rating:', error);
+        if (!response.ok) {
+          throw new Error(data.error || `Server error: ${response.status} ${response.statusText}`);
+        }
+      } catch (error: unknown) {
+        setFeedbackState((prev) => ({
+          ...prev,
+          [provider]: { ...prev[provider], [messageIndex]: previousFeedback },
+        }));
         const errorMessage =
           error instanceof Error && error.message.includes('Failed to fetch')
             ? 'Failed to connect to the server. Please try again later.'
-            : 'An error occurred while submitting rating. Please try again.';
+            : error instanceof Error ? error.message : 'An error occurred while submitting rating. Please try again.';
         setRatingError((prev) => ({ ...prev, [messageIndex]: errorMessage }));
       }
     },
-    [provider, submittedFeedback]
+    [provider, feedbackState]
+  );
+
+  const debouncedHandleFeedback = useCallback(
+    debounce((messageIndex: number, feedback: 'thumbs-up' | 'thumbs-down') => {
+      handleFeedback(messageIndex, feedback);
+    }, 100),
+    [handleFeedback]
   );
 
   const handleFeedbackPromptClick = useCallback(
@@ -501,11 +516,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
   return (
     <div className={`flex flex-col gap-4 justify-between ${className}`}>
-      <style jsx>{`
-        .tint-blue {
-          filter: brightness(0) saturate(100%) invert(60%) sepia(90%) saturate(1500%) hue-rotate(180deg) brightness(95%) contrast(90%);
-        }
-      `}</style>
       <div className="flex flex-col gap-4 p-4">
         <label>
           Provider:
@@ -534,7 +544,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
               feedbackState={feedbackState}
               submittedFeedback={submittedFeedback}
               ratingError={ratingError}
-              handleFeedback={handleFeedback}
+              handleFeedback={debouncedHandleFeedback}
               handleFeedbackPromptClick={handleFeedbackPromptClick}
               messages={messages}
             />
@@ -913,13 +923,8 @@ const MemoizedMessage = memo(
                   </button>
                   <button
                     onClick={() => handleFeedback(index, 'thumbs-up')}
-                    disabled={submittedFeedback[messageProvider][index] || false}
                     className={`transition-all duration-200 transform ${
-                      submittedFeedback[messageProvider][index]
-                        ? 'opacity-60 cursor-not-allowed'
-                        : 'hover:scale-125 hover:opacity-100'
-                    } ${
-                      feedbackState[messageProvider][index] === 'thumbs-up' ? 'opacity-100 tint-blue' : 'opacity-60'
+                      feedbackState[messageProvider][index] === 'thumbs-up' ? 'opacity-100 tint-blue' : 'opacity-60 hover:scale-125 hover:opacity-100'
                     }`}
                     title="Thumbs Up"
                     aria-label="Thumbs Up"
@@ -937,13 +942,8 @@ const MemoizedMessage = memo(
                   </button>
                   <button
                     onClick={() => handleFeedback(index, 'thumbs-down')}
-                    disabled={submittedFeedback[messageProvider][index] || false}
                     className={`transition-all duration-200 transform ${
-                      submittedFeedback[messageProvider][index]
-                        ? 'opacity-60 cursor-not-allowed'
-                        : 'hover:scale-125 hover:opacity-100'
-                    } ${
-                      feedbackState[messageProvider][index] === 'thumbs-down' ? 'opacity-100 tint-blue' : 'opacity-60'
+                      feedbackState[messageProvider][index] === 'thumbs-down' ? 'opacity-100 tint-blue' : 'opacity-60 hover:scale-125 hover:opacity-100'
                     }`}
                     title="Thumbs Down"
                     aria-label="Thumbs Down"
