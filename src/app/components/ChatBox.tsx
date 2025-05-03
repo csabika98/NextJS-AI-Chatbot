@@ -79,7 +79,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = '50px';
-      const newHeight = Math.min(textarea.scrollHeight, 200);
+      const newHeight = Math.min(textarea.scrollHeight, 98);
       textarea.style.height = `${newHeight}px`;
     }
   }, []);
@@ -98,13 +98,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   }, [textareaResize]);
 
   useEffect(() => {
-    if (chatContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-      wasNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 100;
-    }
-    if (wasNearBottomRef.current || messages[messages.length - 1]?.sender === 'user') {
-      scrollToBottom();
-    }
+    scrollToBottom();
   }, [messages, scrollToBottom]);
 
   const isCodeInput = (text: string): boolean => {
