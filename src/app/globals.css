@@ -65,9 +65,14 @@ body {
   animation: fadeIn 0.3s ease-in;
 }
 
-@media (width <= 640px) {
-  .chat-btn.sendBtn {
-    font-size: .875rem;
+
+@media (max-width: 640px) {
+  .chatMessages {
+    padding: 1rem;
+  }
+
+  .chat-btn.sendBtn img {
+    width: 80px !important; 
   }
 }
 
