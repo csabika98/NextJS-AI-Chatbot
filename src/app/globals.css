@@ -94,3 +94,9 @@ body {
 .right-2-custom {
   right: calc(var(--spacing) * 6);
 }
+
+.break-words .font-mono {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-all;
+}

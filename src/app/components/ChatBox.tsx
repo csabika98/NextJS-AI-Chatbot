@@ -11,14 +11,11 @@ import remarkGfm from 'remark-gfm';
 import SYSTEM_PROMPT from '@/app/config/systemPrompt';
 import { debounce } from 'lodash';
 
-const preprocessMarkdown = (markdown: string): string => {
-  const inlineCodeRegex = /```(\w*?)\n?([^\n`]+)\n?```/g;
-  return markdown.replace(inlineCodeRegex, (match, lang, content) => {
-    if (!lang && !content.includes('\n')) {
-      return `\`${content}\``;
-    }
-    return match;
-  });
+const preprocessUserText = (text: string): string => {
+  return text
+    .replace(/```[\w]*\n([\s\S]*?)\n```/g, '$1') 
+    .replace(/```([\s\S]*?)```/g, '$1')
+    .replace(/^\s{4,}/gm, '');
 };
 
 const CodeComponent = memo(
@@ -41,13 +38,17 @@ const CodeComponent = memo(
     const match = className?.match(/language-(\w+)/);
     const language = match ? match[1] : null;
 
-    if (inline || isSingleLine) {
+    if (inline || (isSingleLine && !language)) {
       return <span className="font-bold">{children}</span>;
     }
 
     const handleCopy = () => {
-      navigator.clipboard.writeText(content);
-      alert('Code copied to clipboard!');
+      navigator.clipboard.writeText(content).then(() => {
+        alert('Code copied to clipboard!');
+      }).catch((err) => {
+        console.error('Failed to copy code:', err);
+        alert('Failed to copy code. Please try again.');
+      });
     };
 
     return (
@@ -59,7 +60,7 @@ const CodeComponent = memo(
           {language && <span className="capitalize">{language}</span>}
           <span>Copy</span>
         </button>
-        <div className="w-full max-w-full max-w-[90vw] overflow-x-auto">
+        <div className="w-full max-w-full overflow-x-auto">
           <SyntaxHighlighter
             language={language || undefined}
             style={oneDark}
@@ -100,6 +101,7 @@ const CodeComponent = memo(
 );
 
 export interface ChatBoxProps {
+  title: string;
   askEndpoint: string;
   model: string;
   provider: 'ollama' | 'openai';
@@ -109,7 +111,16 @@ export interface ChatBoxProps {
   className: string;
 }
 
-const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProvider, messages, setMessages, className }) => {
+const ChatBox: React.FC<ChatBoxProps> = ({
+  title,
+  askEndpoint,
+  model,
+  provider,
+  setProvider,
+  messages,
+  setMessages,
+  className,
+}) => {
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -157,20 +168,24 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = '50px';
-      const newHeight = Math.min(textarea.scrollHeight, 98);
+      const newHeight = Math.min(textarea.scrollHeight, 96);
       textarea.style.height = `${newHeight}px`;
     }
   }, []);
+
+
 
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.focus();
       textarea.addEventListener('input', textareaResize);
+      textarea.addEventListener('paste', textareaResize);
     }
     return () => {
       if (textarea) {
         textarea.removeEventListener('input', textareaResize);
+        textarea.removeEventListener('paste', textareaResize);
       }
     };
   }, [textareaResize]);
@@ -179,59 +194,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  const isCodeInput = (text: string): boolean => {
-    const trimmed = text.trim();
-    
-    if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
-      return true;
-    }
-  
-    const codePatterns = [
-      /^function\s+\w+\s*\(/, // Function declaration
-      /^const\s+\w+/, // const variable
-      /^let\s+\w+/, // let variable
-      /^var\s+\w+/, // var variable
-      /^import\s+/, // import statement
-      /^export\s+/, // export statement
-      /^class\s+\w+/, // class declaration
-      /^def\s+\w+/, // Python function
-      /^public\s+\w+/, // public method/variable
-      /^private\s+\w+/, // private method/variable
-      /{\s*[\w\s,:;]+\s*}/, // Object/block with content
-      /=>/, // Arrow function
-      /;\s*$/, // Line ending with semicolon (code-like)
-      /\b(async\s+function|await\s+)/, // Async/await
-    ];
-  
-    let codeIndicators = 0;
-    for (const pattern of codePatterns) {
-      if (pattern.test(trimmed)) {
-        codeIndicators++;
-      }
-    }
-  
-    return codeIndicators >= 2 || trimmed.includes('```');
-  };
-
-  const formatInput = (text: string): string => {
-    const original = text.trim();
-  
-    // Preserve explicit code blocks
-    const codeBlockRegex = /^```(\w+)?\n([\s\S]*?)\n```$/;
-    const match = original.match(codeBlockRegex);
-    if (match) {
-      const [, language, content] = match;
-      return `\`\`\`${language || ''}\n${content}\n\`\`\``;
-    }
-  
-    // Only wrap in code block if it's actual code
-    if (isCodeInput(original)) {
-      return `\`\`\`\n${original}\n\`\`\``;
-    }
-  
-    return original;
-  };
-
   const handleProviderChange = (newProvider: 'ollama' | 'openai') => {
     setProvider(newProvider);
   };
@@ -239,7 +201,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
   const sendMessage = useCallback(async () => {
     if (!input.trim()) return;
 
-    const formattedInput = formatInput(input);
+    const formattedInput = preprocessUserText(input); 
     const userMessage = createUserMessage(formattedInput);
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
@@ -404,7 +366,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
         const errorMessage =
           error instanceof Error && error.message.includes('Failed to fetch')
             ? 'Failed to connect to the server. Please try again later.'
-            : error instanceof Error ? error.message : 'An error occurred while submitting rating. Please try again.';
+            : error instanceof Error
+            ? error.message
+            : 'An error occurred while submitting rating. Please try again.';
         setRatingError((prev) => ({ ...prev, [messageIndex]: errorMessage }));
       }
     },
@@ -552,7 +516,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
         </label>
       </div>
       <div
-        className="chatMessages flex flex-col gap-6 p-3 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden scroll-smooth bg-white rounded-[20px] h-[50vh] sm:h-[60vh] max-h-[50vh] sm:max-h-[60vh] min-h-[300px] w-full max-w-full box-border"
+        className="chatMessages flex flex-col gap-6 p-3 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden scroll-smooth bg-white rounded-[20px] h-[calc(100vh-200px)] sm:h-[60vh] max-h-[calc(100vh-200px)] sm:max-h-[60vh] min-h-[400px] w-full max-w-full box-border"
         ref={chatContainerRef}
       >
         {Array.isArray(messages) && messages.length > 0 ? (
@@ -572,7 +536,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
             />
           ))
         ) : (
-          <div className="text-gray-600 text-center">No messages yet.</div>
+          <div className="text-gray-600 text-center py-4">No messages yet.</div>
         )}
         {isLoading && (
           <div className="loading flex justify-center items-center p-4">
@@ -586,13 +550,13 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
       </div>
       <div className="flex items-center flex-wrap p-2 sm:p-4 gap-4">
         <div
-          className="flex-1 bg-gray-100 p-3 sm:p-2 rounded-[20px] transition-all duration-200 shadow-sm max-w-full"
+          className="flex-1 bg-gray-100 p-3 sm:p-2 rounded-[20px] transition-all duration-200 shadow-sm max-w-full max-h-[112px]"
           ref={textareaContRef}
         >
           <textarea
             ref={textareaRef}
             rows={1}
-            className="chat-input-textarea border-none text-sm sm:text-base text-black resize-none bg-transparent w-full h-[50px] font-[Poppins] placeholder:text-gray-500 focus:outline-none"
+            className="chat-input-textarea border-none text-sm sm:text-base text-black resize-none bg-transparent w-full h-[50px] max-h-[96px] font-[Poppins] placeholder:text-gray-500 focus:outline-none"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -623,7 +587,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[90vw] max-h-[80vh] overflow-y-auto flex flex-col gap-4">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 max-h-[80vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-center flex-1">{getModalHeader()}</h2>
               <button
@@ -647,28 +611,16 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
                   setSubmitError('');
                 }}
                 aria-invalid={feedbackError || submitError ? 'true' : 'false'}
-                aria-describedby={
-                  feedbackError ? 'feedback-error' : submitError ? 'submit-error' : undefined
-                }
+                aria-describedby={feedbackError ? 'feedback-error' : submitError ? 'submit-error' : undefined}
               />
-              {feedbackError && (
-                <p id="feedback-error" className="text-red-500 text-sm">
-                  {feedbackError}
-                </p>
-              )}
-              {submitError && (
-                <p id="submit-error" className="text-red-500 text-sm">
-                  {submitError}
-                </p>
-              )}
+              {feedbackError && <p id="feedback-error" className="text-red-500 text-sm">{feedbackError}</p>}
+              {submitError && <p id="submit-error" className="text-red-500 text-sm">{submitError}</p>}
             </div>
             <div className="flex justify-end">
               <button
                 onClick={handleFeedbackSubmit}
                 className={`px-6 py-2 rounded-full text-white transition-colors duration-200 ${
-                  feedbackText.trim()
-                    ? 'bg-[#3399FF] hover:bg-[#287acc]'
-                    : 'bg-gray-400 cursor-not-allowed'
+                  feedbackText.trim() ? 'bg-[#3399FF] hover:bg-[#287acc]' : 'bg-gray-400 cursor-not-allowed'
                 }`}
                 disabled={!feedbackText.trim()}
                 aria-label="Send Feedback"
@@ -682,7 +634,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
       {isConfirmationModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[90vw] max-h-[80vh] overflow-y-auto flex flex-col gap-4">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 max-h-[80vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-center flex-1">{getModalHeader()}</h2>
               <button
@@ -721,7 +673,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
       {isErrorModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[90vw] max-h-[80vh] overflow-y-auto flex flex-col gap-4">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 max-h-[80vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-center flex-1">Error</h2>
               <button
@@ -753,7 +705,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
       {isAlreadySentModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[90vw] max-h-[80vh] overflow-y-auto flex flex-col gap-4">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 max-h-[80vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-center flex-1">Feedback Status</h2>
               <button
@@ -815,56 +767,128 @@ const MemoizedMessage = memo(
     const messageProvider = (msg.provider || provider) as 'ollama' | 'openai';
     const isFeedbackSubmitted = submittedFeedback[messageProvider][index];
 
+    const getMarkdownComponents = (sender: 'user' | 'bot') => ({
+      ol: (props: React.HTMLAttributes<HTMLOListElement>) => (
+        <ol className="pl-6 sm:pl-8 list-decimal max-w-full" {...props} />
+      ),
+      ul: (props: React.HTMLAttributes<HTMLUListElement>) => (
+        <ul className="pl-6 sm:pl-8 list-disc max-w-full" {...props} />
+      ),
+      li: (props: React.LiHTMLAttributes<HTMLLIElement>) => (
+        <div className="pb-1 max-w-full break-words">{props.children}</div>
+      ),
+      code: (props: {
+        inline?: boolean;
+        className?: string;
+        children?: React.ReactNode;
+        [key: string]: any;
+      }) => {
+        const { children } = props;
+        const content = String(children ?? '').replace(/\n$/, '');
+
+        if (sender === 'user') {
+          return (
+            <span
+              className="break-words font-mono"
+              
+            >
+              {content}
+            </span>
+          );
+        }
+
+        return <CodeComponent {...props} />;
+      },
+      p: (props: React.HTMLAttributes<HTMLParagraphElement>) => {
+        const { children } = props;
+        const hasBlockCode = React.Children.toArray(children).some(
+          (child) =>
+            React.isValidElement(child) &&
+            !(child as React.ReactElement<{ inline?: boolean }>).props.inline
+        );
+        if (hasBlockCode && sender === 'bot') {
+          return <div className="max-w-full">{children}</div>;
+        }
+        return (
+          <p
+            className="mb-2 break-words overflow-wrap-break-word max-w-full"
+           
+            {...props}
+          >
+            {children}
+          </p>
+        );
+      },
+      pre: (props: React.HTMLAttributes<HTMLPreElement>) => {
+        if (sender === 'user') {
+          return (
+            <p className="mb-2 break-words overflow-wrap-break-word max-w-full font-mono">
+              {props.children}
+            </p>
+          );
+        }
+        return (
+          <pre
+            className="max-w-full break-words"
+            {...props}
+          >
+            {props.children}
+          </pre>
+        );
+      },
+      h3: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
+        <h3 className="text-lg sm:text-xl font-semibold mb-3 text-black break-words max-w-full" {...props} />
+      ),
+      h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
+        <h1 className="text-2xl font-bold mb-4 text-black break-words max-w-full" {...props} />
+      ),
+      h2: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
+        <h2 className="text-xl font-bold mb-4 text-black break-words max-w-full" {...props} />
+      ),
+      table: (props: React.TableHTMLAttributes<HTMLTableElement>) => (
+        <table className="border-collapse border border-gray-300 my-4 w-full table-auto max-w-full" {...props} />
+      ),
+      th: (props: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+        <th className="border border-gray-300 px-4 py-2 bg-gray-100 break-words" {...props} />
+      ),
+      td: (props: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+        <td className="border border-gray-300 px-4 py-2 break-words" {...props} />
+      ),
+      strong: (props: React.HTMLAttributes<HTMLElement>) => (
+        <strong className="font-bold break-words" {...props} />
+      ),
+      em: (props: React.HTMLAttributes<HTMLElement>) => <em className="italic break-words" {...props} />,
+      a: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+        <a
+          {...props}
+          className={`text-blue-600 underline break-words${props.className ? ` ${props.className}` : ''}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {props.children}
+        </a>
+      ),
+    });
+
     return (
-      <div className="flex flex-col">
+      <div className="flex flex-col max-w-full">
         {msg.sender === 'user' ? (
           <div className="self-end max-w-[85%] min-w-[10%] flex flex-col">
-            <div className="p-3 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm overflow-hidden box-border">
-              <div className="flex flex-col">
+            <div className="p-3 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm overflow-hidden box-border max-w-full">
+              <div className="flex flex-col max-w-full overflow-hidden break-words">
                 <ReactMarkdown
                   remarkPlugins={[remarkBreaks, remarkGfm]}
-                  components={{
-                    ol: ({ children }) => <ol className="pl-6 sm:pl-8 list-decimal">{children}</ol>,
-                    ul: ({ children }) => <ul className="pl-6 sm:pl-8 list-disc">{children}</ul>,
-                    li: ({ children }) => <div className="pb-1">{children}</div>,
-                    code: CodeComponent,
-                    p: ({ children }) => {
-                      const hasBlockCode = React.Children.toArray(children).some(
-                        (child) =>
-                          React.isValidElement(child) &&
-                          !(child as React.ReactElement<{ inline?: boolean }>).props.inline
-                      );
-                      if (hasBlockCode) {
-                        return <>{children}</>;
-                      }
-                      return <p className="mb-2">{children}</p>;
-                    },
-                    h3: ({ children }) => <h3 className="text-lg sm:text-xl font-semibold mb-3 text-black">{children}</h3>,
-                    h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-black">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-xl font-bold mb-4 text-black">{children}</h2>,
-                    table: ({ children }) => (
-                      <table className="border-collapse border border-gray-300 my-4">{children}</table>
-                    ),
-                    th: ({ children }) => <th className="border border-gray-300 px-4 py-2 bg-gray-100">{children}</th>,
-                    td: ({ children }) => <td className="border border-gray-300 px-4 py-2">{children}</td>,
-                    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                    em: ({ children }) => <em className="italic">{children}</em>,
-                    a: ({ href, children }) => (
-                      <a href={href} className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">
-                        {children}
-                      </a>
-                    ),
-                  }}
+                  components={getMarkdownComponents('user')}
                 >
-                  {preprocessMarkdown(msg.text.replace(/\\n/g, '\n'))}
+                  {preprocessUserText(msg.text).replace(/\\n/g, '\n')}
                 </ReactMarkdown>
               </div>
             </div>
           </div>
         ) : (
           <div className="self-start max-w-[85%] min-w-[40%] flex flex-col">
-            <div className="p-3 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm overflow-hidden box-border">
-              <div className="flex flex-col">
+            <div className="p-3 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm overflow-hidden box-border max-w-full">
+              <div className="flex flex-col max-w-full overflow-hidden break-words">
                 <div className="text-xs text-gray-600 mb-2">
                   {msg.provider === 'openai'
                     ? `OpenAI (${msg.model || 'Unknown'})`
@@ -872,58 +896,28 @@ const MemoizedMessage = memo(
                 </div>
                 <ReactMarkdown
                   remarkPlugins={[remarkBreaks, remarkGfm]}
-                  components={{
-                    ol: ({ children }) => <ol className="pl-6 sm:pl-8 list-decimal">{children}</ol>,
-                    ul: ({ children }) => <ul className="pl-6 sm:pl-8 list-disc">{children}</ul>,
-                    li: ({ children }) => <div className="pb-1">{children}</div>,
-                    code: CodeComponent,
-                    p: ({ children }) => {
-                      const hasBlockCode = React.Children.toArray(children).some(
-                        (child) =>
-                          React.isValidElement(child) &&
-                          !(child as React.ReactElement<{ inline?: boolean }>).props.inline
-                      );
-                      if (hasBlockCode) {
-                        return <>{children}</>;
-                      }
-                      return <p className="mb-2">{children}</p>;
-                    },
-                    h3: ({ children }) => <h3 className="text-lg sm:text-xl font-semibold mb-3 text-black">{children}</h3>,
-                    h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-black">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-xl font-bold mb-4 text-black">{children}</h2>,
-                    table: ({ children }) => (
-                      <table className="border-collapse border border-gray-300 my-4">{children}</table>
-                    ),
-                    th: ({ children }) => <th className="border border-gray-300 px-4 py-2 bg-gray-100">{children}</th>,
-                    td: ({ children }) => <td className="border border-gray-300 px-4 py-2">{children}</td>,
-                    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                    em: ({ children }) => <em className="italic">{children}</em>,
-                    a: ({ href, children }) => (
-                      <a href={href} className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">
-                        {children}
-                      </a>
-                    ),
-                  }}
+                  components={getMarkdownComponents('bot')}
                 >
-                  {preprocessMarkdown(msg.text.replace(/\\n/g, '\n'))}
+                  {msg.text.replace(/\\n/g, '\n')}
                 </ReactMarkdown>
               </div>
             </div>
             {(index !== messages.length - 1 || !isLoading) && (
-              <div className="flex flex-col items-end gap-2 mt-2">
+              <div className="flex flex-col items-end gap-2 mt-2 max-w-full">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleFeedbackPromptClick(index)}
                     className="text-xs text-gray-600 hover:text-gray-800 transition-colors duration-200"
                     title="Give Feedback"
-                    disabled={isFeedbackSubmitted}
                   >
                     GIVE FEEDBACK
                   </button>
                   <button
                     onClick={() => handleFeedback(index, 'thumbs-up')}
                     className={`transition-all duration-200 transform ${
-                      feedbackState[messageProvider][index] === 'thumbs-up' ? 'opacity-100 tint-blue' : 'opacity-60 hover:scale-125 hover:opacity-100'
+                      feedbackState[messageProvider][index] === 'thumbs-up'
+                        ? 'opacity-100 tint-blue'
+                        : 'opacity-60 hover:scale-125 hover:opacity-100'
                     }`}
                     title="Thumbs Up"
                     aria-label="Thumbs Up"
@@ -943,7 +937,9 @@ const MemoizedMessage = memo(
                   <button
                     onClick={() => handleFeedback(index, 'thumbs-down')}
                     className={`transition-all duration-200 transform ${
-                      feedbackState[messageProvider][index] === 'thumbs-down' ? 'opacity-100 tint-blue' : 'opacity-60 hover:scale-125 hover:opacity-100'
+                      feedbackState[messageProvider][index] === 'thumbs-down'
+                        ? 'opacity-100 tint-blue'
+                        : 'opacity-60 hover:scale-125 hover:opacity-100'
                     }`}
                     title="Thumbs Down"
                     aria-label="Thumbs Down"
@@ -962,11 +958,7 @@ const MemoizedMessage = memo(
                   </button>
                 </div>
                 {ratingError[index] && (
-                  <p
-                    id={`rating-error-${index}`}
-                    className="text-red-500 text-xs mt-1"
-                    aria-live="polite"
-                  >
+                  <p id={`rating-error-${index}`} className="text-red-500 text-xs mt-1" aria-live="polite">
                     {ratingError[index]}
                   </p>
                 )}
