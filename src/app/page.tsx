@@ -102,8 +102,9 @@ const HomePage = () => {
                     setProvider={setProvider}
                     messages={chatMessages[provider] || []}
                     setMessages={handleSetMessages}
-                    className="chat-container"
-                  />
+                    className="chat-container" 
+                    title={'NextJS-ChatBot'}                  
+                    />
                 </div>
               </div>
             </div>
