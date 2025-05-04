@@ -90,3 +90,7 @@ body {
       display: block;
   }
 }
+
+.right-2-custom {
+  right: calc(var(--spacing) * 6);
+}

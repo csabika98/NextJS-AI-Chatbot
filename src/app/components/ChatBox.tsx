@@ -21,6 +21,84 @@ const preprocessMarkdown = (markdown: string): string => {
   });
 };
 
+const CodeComponent = memo(
+  ({
+    inline,
+    className,
+    children,
+    ...props
+  }: {
+    inline?: boolean;
+    className?: string;
+    children?: React.ReactNode;
+    [key: string]: any;
+  }) => {
+    const cleanProps = { ...props };
+    delete cleanProps.node;
+
+    const content = String(children).replace(/\n$/, '');
+    const isSingleLine = !content.includes('\n');
+    const match = className?.match(/language-(\w+)/);
+    const language = match ? match[1] : null;
+
+    if (inline || isSingleLine) {
+      return <span className="font-bold">{children}</span>;
+    }
+
+    const handleCopy = () => {
+      navigator.clipboard.writeText(content);
+      alert('Code copied to clipboard!');
+    };
+
+    return (
+      <div className="my-4 relative w-full max-w-full">
+        <button
+          onClick={handleCopy}
+          className="absolute justify-center top-2 right-2-custom text-xs text-gray-400 hover:text-gray-200 bg-gray-700 px-2 py-2 rounded flex items-right gap-1 z-10"
+        >
+          {language && <span className="capitalize">{language}</span>}
+          <span>Copy</span>
+        </button>
+        <div className="w-full max-w-full max-w-[90vw] overflow-x-auto">
+          <SyntaxHighlighter
+            language={language || undefined}
+            style={oneDark}
+            customStyle={{
+              margin: 0,
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              fontSize: '0.875rem',
+              lineHeight: '1.5',
+              overflowX: 'auto',
+              overflowY: 'auto',
+              maxHeight: '50vh',
+              width: '100%',
+              maxWidth: '100%',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              background: 'rgb(40, 44, 52)',
+              color: 'rgb(171, 178, 191)',
+              textShadow: 'rgba(0, 0, 0, 0.3) 0px 1px',
+              boxSizing: 'border-box',
+            }}
+            codeTagProps={{
+              className: 'font-mono',
+              style: {
+                whiteSpace: 'pre-wrap',
+                fontFamily: '"Fira Code", "Fira Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace',
+              },
+              ...cleanProps,
+            }}
+          >
+            {content}
+          </SyntaxHighlighter>
+        </div>
+      </div>
+    );
+  }
+);
+
 export interface ChatBoxProps {
   askEndpoint: string;
   model: string;
@@ -103,32 +181,55 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
   const isCodeInput = (text: string): boolean => {
     const trimmed = text.trim();
+    
     if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
       return true;
     }
-    return (
-      trimmed.includes(';') ||
-      trimmed.includes('=>') ||
-      trimmed.includes('{') ||
-      trimmed.includes('}') ||
-      trimmed.includes('\n') ||
-      /^function\s/.test(trimmed) ||
-      /^const\s/.test(trimmed) ||
-      /^let\s/.test(trimmed) ||
-      /^var\s/.test(trimmed) ||
-      /^import\s/.test(trimmed)
-    );
+  
+    const codePatterns = [
+      /^function\s+\w+\s*\(/, // Function declaration
+      /^const\s+\w+/, // const variable
+      /^let\s+\w+/, // let variable
+      /^var\s+\w+/, // var variable
+      /^import\s+/, // import statement
+      /^export\s+/, // export statement
+      /^class\s+\w+/, // class declaration
+      /^def\s+\w+/, // Python function
+      /^public\s+\w+/, // public method/variable
+      /^private\s+\w+/, // private method/variable
+      /{\s*[\w\s,:;]+\s*}/, // Object/block with content
+      /=>/, // Arrow function
+      /;\s*$/, // Line ending with semicolon (code-like)
+      /\b(async\s+function|await\s+)/, // Async/await
+    ];
+  
+    let codeIndicators = 0;
+    for (const pattern of codePatterns) {
+      if (pattern.test(trimmed)) {
+        codeIndicators++;
+      }
+    }
+  
+    return codeIndicators >= 2 || trimmed.includes('```');
   };
 
   const formatInput = (text: string): string => {
-    const trimmed = text.trim();
-    if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
-      return trimmed;
+    const original = text.trim();
+  
+    // Preserve explicit code blocks
+    const codeBlockRegex = /^```(\w+)?\n([\s\S]*?)\n```$/;
+    const match = original.match(codeBlockRegex);
+    if (match) {
+      const [, language, content] = match;
+      return `\`\`\`${language || ''}\n${content}\n\`\`\``;
     }
-    if (isCodeInput(trimmed)) {
-      return '```javascript\n' + trimmed + '\n```';
+  
+    // Only wrap in code block if it's actual code
+    if (isCodeInput(original)) {
+      return `\`\`\`\n${original}\n\`\`\``;
     }
-    return text;
+  
+    return original;
   };
 
   const handleProviderChange = (newProvider: 'ollama' | 'openai') => {
@@ -156,7 +257,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text,
         })),
-        { role: 'user', content: input },
       ];
 
       const initialBotMessage = createBotMessage('', provider, model);
@@ -245,7 +345,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
       }
     } catch (error) {
       const errorMessage = createBotMessage(`Error: ${(error as Error).message}`, provider, model);
-      const updatedMessages = [...messages, errorMessage];
+      const updatedMessages = [...newMessages, errorMessage];
       setMessages(updatedMessages);
     } finally {
       setIsLoading(false);
@@ -436,87 +536,15 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
     return feedback === 'thumbs-down' ? 'Issue report already sent, Thanks' : 'Feedback already sent, Thanks';
   }, [activeMessageIndex, feedbackState, provider]);
 
-  const CodeComponent = memo(
-    ({
-      inline,
-      className,
-      children,
-      ...props
-    }: {
-      inline?: boolean;
-      className?: string;
-      children?: React.ReactNode;
-      [key: string]: any;
-    }) => {
-      const cleanProps = { ...props };
-      delete cleanProps.node;
-
-      const content = String(children).replace(/\n$/, '');
-      const isSingleLine = !content.includes('\n');
-      const match = className?.match(/language-(\w+)/);
-      const language = match ? match[1] : null;
-
-      if (inline || (isSingleLine && !language)) {
-        return <span><b>{children}</b></span>;
-      }
-
-      const handleCopy = () => {
-        navigator.clipboard.writeText(content);
-        alert('Code copied to clipboard!');
-      };
-
-      return (
-        <div className="my-4 relative">
-          {language && (
-            <button
-              onClick={handleCopy}
-              className="absolute top-2 right-2 text-xs text-gray-400 hover:text-gray-200 bg-gray-700 px-2 py-1 rounded"
-            >
-              Copy
-            </button>
-          )}
-          {language ? (
-            <SyntaxHighlighter
-              language={language}
-              style={oneDark}
-              customStyle={{
-                margin: 0,
-                padding: '1rem',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                lineHeight: '1.5',
-                overflowX: 'auto',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              }}
-              codeTagProps={{
-                className: 'font-mono',
-                ...cleanProps,
-              }}
-            >
-              {content}
-            </SyntaxHighlighter>
-          ) : (
-            <pre
-              className="bg-gray-800 text-white font-mono text-sm p-4 rounded-lg shadow-md overflow-x-auto"
-              {...cleanProps}
-            >
-              <code>{children}</code>
-            </pre>
-          )}
-        </div>
-      );
-    }
-  );
-
   return (
     <div className={`flex flex-col gap-4 justify-between ${className}`}>
       <div className="flex flex-col gap-4 p-4">
-        <label>
+        <label className="flex items-center gap-2">
           Provider:
           <select
             value={provider}
             onChange={(e) => handleProviderChange(e.target.value as 'ollama' | 'openai')}
-            className="ml-2 p-1 border rounded"
+            className="ml-2 p-1 border rounded w-full max-w-[150px]"
           >
             <option value="ollama">Ollama</option>
             <option value="openai">OpenAI</option>
@@ -524,7 +552,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
         </label>
       </div>
       <div
-        className="chatMessages flex flex-col gap-6 p-4 sm:p-6 md:p-8 overflow-y-auto scroll-smooth bg-white rounded-[20px] h-[60vh] max-h-[60vh]"
+        className="chatMessages flex flex-col gap-6 p-3 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden scroll-smooth bg-white rounded-[20px] h-[50vh] sm:h-[60vh] max-h-[50vh] sm:max-h-[60vh] min-h-[300px] w-full max-w-full box-border"
         ref={chatContainerRef}
       >
         {Array.isArray(messages) && messages.length > 0 ? (
@@ -556,9 +584,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
           </div>
         )}
       </div>
-      <div className="flex items-center p-2 sm:p-4 gap-4">
+      <div className="flex items-center flex-wrap p-2 sm:p-4 gap-4">
         <div
-          className="flex-1 bg-gray-100 p-3 sm:p-2 rounded-[20px] transition-all duration-200 shadow-sm"
+          className="flex-1 bg-gray-100 p-3 sm:p-2 rounded-[20px] transition-all duration-200 shadow-sm max-w-full"
           ref={textareaContRef}
         >
           <textarea
@@ -570,11 +598,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
             onKeyDown={handleKeyDown}
             onPaste={textareaResize}
             placeholder="Write your question here..."
+            maxLength={40000}
           />
         </div>
         <button
           ref={buttonRef}
-          className="chat-btn sendBtn border-none cursor-pointer disabled:opacity-50"
+          className="chat-btn sendBtn border-none cursor-pointer disabled:opacity-50 w-[80px] h-[80px] sm:w-[120px] sm:h-[120px]"
           onClick={sendMessage}
           disabled={isLoading || !input.trim()}
           title="Send"
@@ -582,8 +611,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
           <Image
             src="/button.png"
             alt="Send Button"
-            width={120}
-            height={120}
+            width={80}
+            height={80}
             quality={80}
             style={{ height: 'auto', width: 'auto' }}
             priority
@@ -594,7 +623,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[500px] flex flex-col gap-4">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[90vw] max-h-[80vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-center flex-1">{getModalHeader()}</h2>
               <button
@@ -653,7 +682,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
       {isConfirmationModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[400px] flex flex-col gap-4">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[90vw] max-h-[80vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-center flex-1">{getModalHeader()}</h2>
               <button
@@ -692,7 +721,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
       {isErrorModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[400px] flex flex-col gap-4">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[90vw] max-h-[80vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-center flex-1">Error</h2>
               <button
@@ -724,7 +753,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ askEndpoint, model, provider, setProv
 
       {isAlreadySentModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[400px] flex flex-col gap-4">
+          <div className="bg-white rounded-[20px] shadow-lg p-6 w-[90%] max-w-[90vw] max-h-[80vh] overflow-y-auto flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-center flex-1">Feedback Status</h2>
               <button
@@ -784,20 +813,57 @@ const MemoizedMessage = memo(
     messages: Message[];
   }) => {
     const messageProvider = (msg.provider || provider) as 'ollama' | 'openai';
+    const isFeedbackSubmitted = submittedFeedback[messageProvider][index];
 
     return (
       <div className="flex flex-col">
         {msg.sender === 'user' ? (
-          <div
-            className={`p-4 sm:p-5 md:p-6 rounded-[30px] max-w-[90%] sm:max-w-[80%] transition-opacity duration-300 bg-gradient-to-r from-[#3399FF] to-[#287acc] self-end text-white rounded-tl-[30px] rounded-br-[0]`}
-          >
-            <div className="text-sm sm:text-base">{msg.text}</div>
+          <div className="self-end max-w-[85%] min-w-[10%] flex flex-col">
+            <div className="p-3 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm overflow-hidden box-border">
+              <div className="flex flex-col">
+                <ReactMarkdown
+                  remarkPlugins={[remarkBreaks, remarkGfm]}
+                  components={{
+                    ol: ({ children }) => <ol className="pl-6 sm:pl-8 list-decimal">{children}</ol>,
+                    ul: ({ children }) => <ul className="pl-6 sm:pl-8 list-disc">{children}</ul>,
+                    li: ({ children }) => <div className="pb-1">{children}</div>,
+                    code: CodeComponent,
+                    p: ({ children }) => {
+                      const hasBlockCode = React.Children.toArray(children).some(
+                        (child) =>
+                          React.isValidElement(child) &&
+                          !(child as React.ReactElement<{ inline?: boolean }>).props.inline
+                      );
+                      if (hasBlockCode) {
+                        return <>{children}</>;
+                      }
+                      return <p className="mb-2">{children}</p>;
+                    },
+                    h3: ({ children }) => <h3 className="text-lg sm:text-xl font-semibold mb-3 text-black">{children}</h3>,
+                    h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-black">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-xl font-bold mb-4 text-black">{children}</h2>,
+                    table: ({ children }) => (
+                      <table className="border-collapse border border-gray-300 my-4">{children}</table>
+                    ),
+                    th: ({ children }) => <th className="border border-gray-300 px-4 py-2 bg-gray-100">{children}</th>,
+                    td: ({ children }) => <td className="border border-gray-300 px-4 py-2">{children}</td>,
+                    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                    em: ({ children }) => <em className="italic">{children}</em>,
+                    a: ({ href, children }) => (
+                      <a href={href} className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">
+                        {children}
+                      </a>
+                    ),
+                  }}
+                >
+                  {preprocessMarkdown(msg.text.replace(/\\n/g, '\n'))}
+                </ReactMarkdown>
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="self-start max-w-[90%] sm:max-w-[80%] flex flex-col">
-            <div
-              className={`p-4 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm`}
-            >
+          <div className="self-start max-w-[85%] min-w-[40%] flex flex-col">
+            <div className="p-3 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm overflow-hidden box-border">
               <div className="flex flex-col">
                 <div className="text-xs text-gray-600 mb-2">
                   {msg.provider === 'openai'
@@ -810,69 +876,7 @@ const MemoizedMessage = memo(
                     ol: ({ children }) => <ol className="pl-6 sm:pl-8 list-decimal">{children}</ol>,
                     ul: ({ children }) => <ul className="pl-6 sm:pl-8 list-disc">{children}</ul>,
                     li: ({ children }) => <div className="pb-1">{children}</div>,
-                    code: ({ inline, className, children, ...props }: {
-                      inline?: boolean;
-                      className?: string;
-                      children?: React.ReactNode;
-                      [key: string]: any;
-                    }) => {
-                      const cleanProps = { ...props };
-                      delete cleanProps.node;
-                      const content = String(children).replace(/\n$/, '');
-                      const isSingleLine = !content.includes('\n');
-                      const match = className?.match(/language-(\w+)/);
-                      const language = match ? match[1] : null;
-
-                      if (inline || (isSingleLine && !language)) {
-                        return <span><b>{children}</b></span>;
-                      }
-
-                      const handleCopy = () => {
-                        navigator.clipboard.writeText(content);
-                        alert('Code copied to clipboard!');
-                      };
-
-                      return (
-                        <div className="my-4 relative">
-                          {language && (
-                            <button
-                              onClick={handleCopy}
-                              className="absolute top-2 right-2 text-xs text-gray-400 hover:text-gray-200 bg-gray-700 px-2 py-1 rounded"
-                            >
-                              Copy
-                            </button>
-                          )}
-                          {language ? (
-                            <SyntaxHighlighter
-                              language={language}
-                              style={oneDark}
-                              customStyle={{
-                                margin: 0,
-                                padding: '1rem',
-                                borderRadius: '0.5rem',
-                                fontSize: '0.875rem',
-                                lineHeight: '1.5',
-                                overflowX: 'auto',
-                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                              }}
-                              codeTagProps={{
-                                className: 'font-mono',
-                                ...cleanProps,
-                              }}
-                            >
-                              {content}
-                            </SyntaxHighlighter>
-                          ) : (
-                            <pre
-                              className="bg-gray-800 text-white font-mono text-sm p-4 rounded-lg shadow-md overflow-x-auto"
-                              {...cleanProps}
-                            >
-                              <code>{children}</code>
-                            </pre>
-                          )}
-                        </div>
-                      );
-                    },
+                    code: CodeComponent,
                     p: ({ children }) => {
                       const hasBlockCode = React.Children.toArray(children).some(
                         (child) =>
@@ -912,6 +916,7 @@ const MemoizedMessage = memo(
                     onClick={() => handleFeedbackPromptClick(index)}
                     className="text-xs text-gray-600 hover:text-gray-800 transition-colors duration-200"
                     title="Give Feedback"
+                    disabled={isFeedbackSubmitted}
                   >
                     GIVE FEEDBACK
                   </button>
@@ -923,6 +928,7 @@ const MemoizedMessage = memo(
                     title="Thumbs Up"
                     aria-label="Thumbs Up"
                     aria-describedby={ratingError[index] ? `rating-error-${index}` : undefined}
+                    disabled={isFeedbackSubmitted}
                   >
                     <Image
                       src="/tup.png"
@@ -942,6 +948,7 @@ const MemoizedMessage = memo(
                     title="Thumbs Down"
                     aria-label="Thumbs Down"
                     aria-describedby={ratingError[index] ? `rating-error-${index}` : undefined}
+                    disabled={isFeedbackSubmitted}
                   >
                     <Image
                       src="/tdown.png"
