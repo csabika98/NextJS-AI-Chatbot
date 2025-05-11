@@ -76,9 +76,10 @@ body {
   }
 }
 
-.tint-blue {
-  filter: brightness(0) saturate(100%) invert(60%) sepia(90%) saturate(1500%) hue-rotate(180deg) brightness(95%) contrast(90%);
+.tint-red {
+  filter: brightness(0) saturate(100%) invert(21%) sepia(100%) saturate(7450%) hue-rotate(-5deg) brightness(95%) contrast(95%);
 }
+
 @media (width >= 40rem) {
   .sm\:block {
       display: none;

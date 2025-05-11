@@ -13,7 +13,7 @@ import { debounce } from 'lodash';
 
 const preprocessUserText = (text: string): string => {
   return text
-    .replace(/```[\w]*\n([\s\S]*?)\n```/g, '$1') 
+    .replace(/```[\w]*\n([\s\S]*?)\n```/g, '$1')
     .replace(/```([\s\S]*?)```/g, '$1')
     .replace(/^\s{4,}/gm, '');
 };
@@ -55,7 +55,7 @@ const CodeComponent = memo(
       <div className="my-4 relative w-full max-w-full">
         <button
           onClick={handleCopy}
-          className="absolute justify-center top-2 right-2-custom text-xs text-gray-400 hover:text-gray-200 bg-gray-700 px-2 py-2 rounded flex items-right gap-1 z-10"
+          className="absolute justify-center top-2 right-2 text-xs text-gray-400 hover:text-gray-200 bg-gray-700 px-2 py-2 rounded flex items-right gap-1 z-10"
         >
           {language && <span className="capitalize">{language}</span>}
           <span>Copy</span>
@@ -167,13 +167,11 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   const textareaResize = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
-      textarea.style.height = '50px';
-      const newHeight = Math.min(textarea.scrollHeight, 96);
+      textarea.style.height = '98px';
+      const newHeight = Math.min(textarea.scrollHeight, 98);
       textarea.style.height = `${newHeight}px`;
     }
   }, []);
-
-
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -201,13 +199,13 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   const sendMessage = useCallback(async () => {
     if (!input.trim()) return;
 
-    const formattedInput = preprocessUserText(input); 
+    const formattedInput = preprocessUserText(input);
     const userMessage = createUserMessage(formattedInput);
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
     if (textareaRef.current) {
-      textareaRef.current.style.height = '50px';
+      textareaRef.current.style.height = '98px';
     }
     setIsLoading(true);
     wasNearBottomRef.current = true;
@@ -477,21 +475,21 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   }, []);
 
   const getModalHeader = useCallback(() => {
-    if (activeMessageIndex === null) return 'Share your feedback';
+    if (activeMessageIndex === null) return 'Share Your Feedback';
     const feedback = feedbackState[provider][activeMessageIndex];
-    return feedback === 'thumbs-down' ? 'Report an Issue' : 'Share your feedback';
+    return feedback === 'thumbs-down' ? 'Report an Issue' : 'Share Your Feedback';
   }, [activeMessageIndex, feedbackState, provider]);
 
   const getTextareaPlaceholder = useCallback(() => {
-    if (activeMessageIndex === null) return 'write your feedback here...';
+    if (activeMessageIndex === null) return 'Write your feedback here...';
     const feedback = feedbackState[provider][activeMessageIndex];
-    return feedback === 'thumbs-down' ? 'write your issue here...' : 'write your feedback here...';
+    return feedback === 'thumbs-down' ? 'Describe the issue or why this response is problematic...' : 'What did you like or what could be improved?';
   }, [activeMessageIndex, feedbackState, provider]);
 
   const getConfirmationMessage = useCallback(() => {
     if (activeMessageIndex === null) return 'Feedback Sent!';
     const feedback = feedbackState[provider][activeMessageIndex];
-    return feedback === 'thumbs-down' ? 'Report Sent!' : 'Feedback Sent!';
+    return feedback === 'thumbs-down' ? 'Issue Report Sent!' : 'Feedback Sent!';
   }, [activeMessageIndex, feedbackState, provider]);
 
   const getAlreadySentMessage = useCallback(() => {
@@ -501,7 +499,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   }, [activeMessageIndex, feedbackState, provider]);
 
   return (
-    <div className={`flex flex-col gap-4 justify-between ${className}`}>
+    <div className={`flex flex-col h-full ${className}`}>
       <div className="flex flex-col gap-4 p-4">
         <label className="flex items-center gap-2">
           Provider:
@@ -516,7 +514,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         </label>
       </div>
       <div
-        className="chatMessages flex flex-col gap-6 p-3 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden scroll-smooth bg-white rounded-[20px] h-[calc(100vh-200px)] sm:h-[60vh] max-h-[calc(100vh-200px)] sm:max-h-[60vh] min-h-[400px] w-full max-w-full box-border"
+        className="chat-chat-messages flex flex-col gap-6 p-4 sm:p-6 md:p-8 overflow-y-auto scroll-smooth bg-white flex-shrink-0 rounded-[20px] h-[60vh] max-h-[90vh] min-h-0"
         ref={chatContainerRef}
       >
         {Array.isArray(messages) && messages.length > 0 ? (
@@ -536,49 +534,56 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             />
           ))
         ) : (
-          <div className="text-gray-600 text-center py-4">No messages yet.</div>
+          <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 text-sm p-4">
+            <span>No messages yet.</span>
+            <span>Start the conversation below!</span>
+          </div>
         )}
         {isLoading && (
-          <div className="loading flex justify-center items-center p-4">
-            <div className="animate-pulse flex space-x-2">
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+          <div className="self-start max-w-[90%] sm:max-w-[80%] flex flex-col">
+            <div className="p-4 sm:p-5 md:p-6 rounded-[30px] bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm">
+              <div className="animate-pulse flex space-x-2">
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              </div>
             </div>
           </div>
         )}
       </div>
-      <div className="flex items-center flex-wrap p-2 sm:p-4 gap-4">
+      <div className="flex items-center p-2 sm:p-3 gap-2 sm:gap-3 border-t border-gray-200 bg-white shrink-0">
         <div
-          className="flex-1 bg-gray-100 p-3 sm:p-2 rounded-[20px] transition-all duration-200 shadow-sm max-w-full max-h-[112px]"
+          className="flex-1 bg-gray-100 rounded-[20px] transition-all duration-200 shadow-sm flex items-end"
           ref={textareaContRef}
         >
           <textarea
             ref={textareaRef}
             rows={1}
-            className="chat-input-textarea border-none text-sm sm:text-base text-black resize-none bg-transparent w-full h-[50px] max-h-[96px] font-[Poppins] placeholder:text-gray-500 focus:outline-none"
+            className="chat-chat-input-textarea border-none text-sm sm:text-base text-black resize-none bg-transparent w-full py-2 px-3 font-[Poppins] placeholder:text-gray-500 focus:outline-none"
+            style={{ minHeight: '98px' }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={textareaResize}
             placeholder="Write your question here..."
             maxLength={40000}
+            disabled={isLoading}
           />
         </div>
         <button
           ref={buttonRef}
-          className="chat-btn sendBtn border-none cursor-pointer disabled:opacity-50 w-[80px] h-[80px] sm:w-[120px] sm:h-[120px]"
+          className="chat-btn sendBtn p-0 border-none bg-transparent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity"
           onClick={sendMessage}
           disabled={isLoading || !input.trim()}
           title="Send"
+          aria-label="Send message"
         >
           <Image
             src="/button.png"
             alt="Send Button"
-            width={80}
-            height={80}
-            quality={80}
-            style={{ height: 'auto', width: 'auto' }}
+            width={120}
+            height={120}
+            quality={100}
             priority
             className="object-contain"
           />
@@ -586,22 +591,29 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 max-h-[80vh] overflow-y-auto flex flex-col gap-4">
+        <div className="fixed inset-0 flex items-center justify-center bg-transparent backdrop-blur-md z-50 p-4">
+          <div
+            className="bg-white rounded-[20px] shadow-xl p-6 w-full max-w-lg flex flex-col gap-4"
+            role="dialog"
+            aria-labelledby="feedback-modal-header"
+            aria-modal="true"
+          >
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-center flex-1">{getModalHeader()}</h2>
+              <h2 id="feedback-modal-header" className="text-lg font-semibold text-gray-800 flex-1 text-center">
+                {getModalHeader()}
+              </h2>
               <button
                 onClick={handleModalClose}
-                className="text-gray-600 hover:text-gray-800 text-xl"
-                aria-label="Close Modal"
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                aria-label="Close feedback modal"
               >
-                ✕
+                ×
               </button>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 flex-1">
               <textarea
-                className={`w-full h-24 p-3 rounded-[10px] bg-gray-100 text-gray-800 placeholder-gray-500 focus:outline-none resize-none ${
-                  feedbackError || submitError ? 'border-2 border-red-500' : ''
+                className={`w-full min-h-[100px] p-3 rounded-[10px] bg-gray-100 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#EF4444] resize-none border ${
+                  feedbackError || submitError ? 'border-red-500 ring-red-500' : 'border-gray-300'
                 }`}
                 placeholder={getTextareaPlaceholder()}
                 value={feedbackText}
@@ -610,20 +622,26 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                   setFeedbackError('');
                   setSubmitError('');
                 }}
-                aria-invalid={feedbackError || submitError ? 'true' : 'false'}
+                aria-invalid={!!feedbackError || !!submitError}
                 aria-describedby={feedbackError ? 'feedback-error' : submitError ? 'submit-error' : undefined}
               />
-              {feedbackError && <p id="feedback-error" className="text-red-500 text-sm">{feedbackError}</p>}
-              {submitError && <p id="submit-error" className="text-red-500 text-sm">{submitError}</p>}
+              {feedbackError && (
+                <p id="feedback-error" className="text-red-600 text-sm">{feedbackError}</p>
+              )}
+              {submitError && (
+                <p id="submit-error" className="text-red-600 text-sm">{submitError}</p>
+              )}
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-center items-center">
               <button
                 onClick={handleFeedbackSubmit}
-                className={`px-6 py-2 rounded-full text-white transition-colors duration-200 ${
-                  feedbackText.trim() ? 'bg-[#3399FF] hover:bg-[#287acc]' : 'bg-gray-400 cursor-not-allowed'
+                className={`px-8 py-3 rounded-full text-white font-semibold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  feedbackText.trim()
+                    ? 'bg-[#EF4444] hover:bg-[#EF4444] focus:ring-[#EF4444]'
+                    : 'bg-gray-400 cursor-not-allowed'
                 }`}
                 disabled={!feedbackText.trim()}
-                aria-label="Send Feedback"
+                aria-label="Submit feedback"
               >
                 Send
               </button>
@@ -633,55 +651,68 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       )}
 
       {isConfirmationModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 max-h-[80vh] overflow-y-auto flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-center flex-1">{getModalHeader()}</h2>
+        <div className="fixed inset-0 flex items-center justify-center bg-transparent backdrop-blur-md z-50 p-4">
+          <div
+            className="bg-white rounded-[20px] shadow-xl p-6 w-full max-w-md flex flex-col gap-4 items-center"
+            role="alertdialog"
+            aria-labelledby="confirmation-modal-header"
+            aria-modal="true"
+          >
+            <div className="w-full flex justify-between items-center">
+              <span className="w-6"></span>
+              <h2 id="confirmation-modal-header" className="text-lg font-semibold text-gray-800 text-center flex-1">
+                {getConfirmationMessage()}
+              </h2>
               <button
                 onClick={handleConfirmationModalClose}
-                className="text-gray-600 hover:text-gray-800 text-xl"
-                aria-label="Close Modal"
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                aria-label="Close confirmation"
               >
-                ✕
+                ×
               </button>
             </div>
-            <div className="flex flex-col items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-12 w-12 text-[#3399FF]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <p className="text-lg font-bold text-center">{getConfirmationMessage()}</p>
-              <p className="text-center text-gray-600">Thanks</p>
-            </div>
-            <div className="flex justify-center">
-              <button
-                onClick={handleConfirmationModalClose}
-                className="text-gray-600 underline hover:text-gray-800 transition-colors duration-200"
-              >
-                Close
-              </button>
-            </div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-16 w-16 text-[#EF4444]"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-xl font-bold text-gray-800 text-center">{getConfirmationMessage()}</p>
+            <p className="text-center text-gray-600">Thank you for your input!</p>
+            <button
+              onClick={handleConfirmationModalClose}
+              className="mt-2 px-6 py-2 rounded-full text-white bg-[#EF4444] hover:bg-[#EF4444] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#EF4444] focus:ring-offset-2"
+              aria-label="Close confirmation"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
 
       {isErrorModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 max-h-[80vh] overflow-y-auto flex flex-col gap-4">
+        <div className="fixed inset-0 flex items-center justify-center bg-transparent backdrop-blur-md z-50 p-4">
+          <div
+            className="bg-white rounded-[20px] shadow-xl p-6 w-full max-w-md flex flex-col gap-4"
+            role="alertdialog"
+            aria-labelledby="error-modal-header"
+            aria-modal="true"
+          >
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-center flex-1">Error</h2>
+              <h2 id="error-modal-header" className="text-lg font-semibold text-gray-800 text-center flex-1">
+                Error
+              </h2>
               <button
                 onClick={handleErrorModalClose}
-                className="text-gray-600 hover:text-gray-800 text-xl"
-                aria-label="Close Modal"
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                aria-label="Close error modal"
               >
-                ✕
+                ×
               </button>
             </div>
             <div className="flex flex-col items-center gap-2">
@@ -694,7 +725,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             <div className="flex justify-center">
               <button
                 onClick={handleErrorModalClose}
-                className="text-gray-600 underline hover:text-gray-800 transition-colors duration-200"
+                className="mt-2 px-6 py-2 rounded-full text-white bg-[#EF4444] hover:bg-[#EF4444] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#EF4444] focus:ring-offset-2"
+                aria-label="Close error modal"
               >
                 Close
               </button>
@@ -704,16 +736,23 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       )}
 
       {isAlreadySentModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center backdrop-blur-md z-50">
-          <div className="bg-white rounded-[20px] shadow-lg p-6 max-h-[80vh] overflow-y-auto flex flex-col gap-4">
+        <div className="fixed inset-0 flex items-center justify-center bg-transparent backdrop-blur-md z-50 p-4">
+          <div
+            className="bg-white rounded-[20px] shadow-xl p-6 w-full max-w-md flex flex-col gap-4"
+            role="alertdialog"
+            aria-labelledby="already-sent-modal-header"
+            aria-modal="true"
+          >
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-center flex-1">Feedback Status</h2>
+              <h2 id="already-sent-modal-header" className="text-lg font-semibold text-gray-800 text-center flex-1">
+                Feedback Status
+              </h2>
               <button
                 onClick={handleAlreadySentModalClose}
-                className="text-gray-600 hover:text-gray-800 text-xl"
-                aria-label="Close Modal"
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                aria-label="Close already sent modal"
               >
-                ✕
+                ×
               </button>
             </div>
             <div className="flex flex-col items-center gap-2">
@@ -722,7 +761,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             <div className="flex justify-center">
               <button
                 onClick={handleAlreadySentModalClose}
-                className="text-gray-600 underline hover:text-gray-800 transition-colors duration-200"
+                className="mt-2 px-6 py-2 rounded-full text-white bg-[#EF4444] hover:bg-[#EF4444] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#EF4444] focus:ring-offset-2"
+                aria-label="Close already sent modal"
               >
                 Close
               </button>
@@ -788,12 +828,7 @@ const MemoizedMessage = memo(
 
         if (sender === 'user') {
           return (
-            <span
-              className="break-words font-mono"
-              
-            >
-              {content}
-            </span>
+            <span className="break-words font-mono">{content}</span>
           );
         }
 
@@ -810,11 +845,7 @@ const MemoizedMessage = memo(
           return <div className="max-w-full">{children}</div>;
         }
         return (
-          <p
-            className="mb-2 break-words overflow-wrap-break-word max-w-full"
-           
-            {...props}
-          >
+          <p className="mb-2 break-words overflow-wrap-break-word max-w-full" {...props}>
             {children}
           </p>
         );
@@ -828,10 +859,7 @@ const MemoizedMessage = memo(
           );
         }
         return (
-          <pre
-            className="max-w-full break-words"
-            {...props}
-          >
+          <pre className="max-w-full break-words" {...props}>
             {props.children}
           </pre>
         );
@@ -840,10 +868,19 @@ const MemoizedMessage = memo(
         <h3 className="text-lg sm:text-xl font-semibold mb-3 text-black break-words max-w-full" {...props} />
       ),
       h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
-        <h1 className="text-2xl font-bold mb-4 text-black break-words max-w-full" {...props} />
+        <h1 className="text-2xl sm:text-3xl font-bold mb-3 text-black break-words max-w-full" {...props} />
       ),
       h2: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
-        <h2 className="text-xl font-bold mb-4 text-black break-words max-w-full" {...props} />
+        <h2 className="text-xl sm:text-2xl font-semibold mb-3 text-black break-words max-w-full" {...props} />
+      ),
+      h4: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
+        <h4 className="text-base sm:text-lg font-semibold mb-3 text-black break-words max-w-full" {...props} />
+      ),
+      h5: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
+        <h5 className="text-sm sm:text-base font-semibold mb-3 text-black break-words max-w-full" {...props} />
+      ),
+      h6: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
+        <h6 className="text-xs sm:text-sm font-semibold mb-3 text-black break-words max-w-full" {...props} />
       ),
       table: (props: React.TableHTMLAttributes<HTMLTableElement>) => (
         <table className="border-collapse border border-gray-300 my-4 w-full table-auto max-w-full" {...props} />
@@ -873,9 +910,9 @@ const MemoizedMessage = memo(
     return (
       <div className="flex flex-col max-w-full">
         {msg.sender === 'user' ? (
-          <div className="self-end max-w-[85%] min-w-[10%] flex flex-col">
-            <div className="p-3 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm overflow-hidden box-border max-w-full">
-              <div className="flex flex-col max-w-full overflow-hidden break-words">
+          <div className="self-end max-w-[90%] sm:max-w-[80%] flex flex-col">
+            <div className="p-4 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-gradient-to-r from-[#EF4444] to-[#B91C1C] text-white rounded-br-[0] shadow-sm">
+              <div className="text-sm sm:text-base whitespace-pre-wrap break-words">
                 <ReactMarkdown
                   remarkPlugins={[remarkBreaks, remarkGfm]}
                   components={getMarkdownComponents('user')}
@@ -886,9 +923,9 @@ const MemoizedMessage = memo(
             </div>
           </div>
         ) : (
-          <div className="self-start max-w-[85%] min-w-[40%] flex flex-col">
-            <div className="p-3 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm overflow-hidden box-border max-w-full">
-              <div className="flex flex-col max-w-full overflow-hidden break-words">
+          <div className="self-start max-w-[90%] sm:max-w-[80%] flex flex-col">
+            <div className="p-4 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-bl-[0] shadow-sm">
+              <div className="flex flex-col max-w-full break-words">
                 <div className="text-xs text-gray-600 mb-2">
                   {msg.provider === 'openai'
                     ? `OpenAI (${msg.model || 'Unknown'})`
@@ -903,65 +940,63 @@ const MemoizedMessage = memo(
               </div>
             </div>
             {(index !== messages.length - 1 || !isLoading) && (
-              <div className="flex flex-col items-end gap-2 mt-2 max-w-full">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 justify-end mt-2">
+                <button
+                  onClick={() => handleFeedbackPromptClick(index)}
+                  className="text-xs text-gray-600 hover:text-gray-900 hover:underline transition-colors duration-200"
+                  title="Provide detailed feedback"
+                  aria-label="Provide detailed feedback for this message"
+                  disabled={isFeedbackSubmitted}
+                >
+                  GIVE FEEDBACK
+                </button>
+                {(['thumbs-up', 'thumbs-down'] as const).map((ratingType) => (
                   <button
-                    onClick={() => handleFeedbackPromptClick(index)}
-                    className="text-xs text-gray-600 hover:text-gray-800 transition-colors duration-200"
-                    title="Give Feedback"
-                  >
-                    GIVE FEEDBACK
-                  </button>
-                  <button
-                    onClick={() => handleFeedback(index, 'thumbs-up')}
-                    className={`transition-all duration-200 transform ${
-                      feedbackState[messageProvider][index] === 'thumbs-up'
-                        ? 'opacity-100 tint-blue'
-                        : 'opacity-60 hover:scale-125 hover:opacity-100'
+                    key={ratingType}
+                    onClick={() => handleFeedback(index, ratingType)}
+                    className={`transition-all duration-200 transform hover:scale-125 rounded-full ${
+                      feedbackState[messageProvider][index] === ratingType
+                        ? 'opacity-100'
+                        : 'opacity-60 hover:opacity-90'
+                    } ${
+                      feedbackState[messageProvider][index] === ratingType && ratingType === 'thumbs-up'
+                        ? 'bg-green-100'
+                        : ''
+                    } ${
+                      feedbackState[messageProvider][index] === ratingType && ratingType === 'thumbs-down'
+                        ? 'bg-red-100'
+                        : ''
                     }`}
-                    title="Thumbs Up"
-                    aria-label="Thumbs Up"
+                    title={ratingType === 'thumbs-up' ? 'Helpful' : 'Not helpful'}
+                    aria-label={ratingType === 'thumbs-up' ? 'Mark as helpful' : 'Mark as not helpful'}
+                    aria-pressed={feedbackState[messageProvider][index] === ratingType}
                     aria-describedby={ratingError[index] ? `rating-error-${index}` : undefined}
                     disabled={isFeedbackSubmitted}
                   >
                     <Image
-                      src="/tup.png"
-                      alt="Thumbs Up"
+                      src={ratingType === 'thumbs-up' ? '/tup.png' : '/tdown.png'}
+                      alt={ratingType === 'thumbs-up' ? 'Thumbs Up' : 'Thumbs Down'}
                       width={16}
                       height={16}
-                      style={{ height: 'auto', width: 'auto' }}
-                      priority
-                      className={feedbackState[messageProvider][index] === 'thumbs-up' ? 'tint-blue' : ''}
+                      className={`object-contain ${
+                        feedbackState[messageProvider][index] === ratingType && ratingType === 'thumbs-up'
+                          ? 'opacity-100 tint-red'
+                          : ''
+                      } ${
+                        feedbackState[messageProvider][index] === ratingType && ratingType === 'thumbs-down'
+                          ? 'opacity-100 tint-red'
+                          : ''
+                      }`}
                     />
                   </button>
-                  <button
-                    onClick={() => handleFeedback(index, 'thumbs-down')}
-                    className={`transition-all duration-200 transform ${
-                      feedbackState[messageProvider][index] === 'thumbs-down'
-                        ? 'opacity-100 tint-blue'
-                        : 'opacity-60 hover:scale-125 hover:opacity-100'
-                    }`}
-                    title="Thumbs Down"
-                    aria-label="Thumbs Down"
-                    aria-describedby={ratingError[index] ? `rating-error-${index}` : undefined}
-                    disabled={isFeedbackSubmitted}
-                  >
-                    <Image
-                      src="/tdown.png"
-                      alt="Thumbs Down"
-                      width={16}
-                      height={16}
-                      style={{ height: 'auto', width: 'auto' }}
-                      priority
-                      className={feedbackState[messageProvider][index] === 'thumbs-down' ? 'tint-blue' : ''}
-                    />
-                  </button>
-                </div>
-                {ratingError[index] && (
-                  <p id={`rating-error-${index}`} className="text-red-500 text-xs mt-1" aria-live="polite">
-                    {ratingError[index]}
-                  </p>
-                )}
+                ))}
+              </div>
+            )}
+            {ratingError[index] && (
+              <div className="flex justify-end mt-1 w-full">
+                <p id={`rating-error-${index}`} className="text-red-500 text-xs" aria-live="polite">
+                  {ratingError[index]}
+                </p>
               </div>
             )}
           </div>
