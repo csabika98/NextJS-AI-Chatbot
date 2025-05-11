@@ -605,7 +605,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
               <button
                 onClick={handleModalClose}
                 className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
-                aria-label="Close feedback modal"
+                aria-label="Close confirmation"
               >
                 ×
               </button>
@@ -684,13 +684,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             </svg>
             <p className="text-xl font-bold text-gray-800 text-center">{getConfirmationMessage()}</p>
             <p className="text-center text-gray-600">Thank you for your input!</p>
-            <button
-              onClick={handleConfirmationModalClose}
-              className="mt-2 px-6 py-2 rounded-full text-white bg-[#EF4444] hover:bg-[#EF4444] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#EF4444] focus:ring-offset-2"
-              aria-label="Close confirmation"
-            >
-              Close
-            </button>
+            
           </div>
         </div>
       )}
@@ -723,13 +717,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
               </p>
             </div>
             <div className="flex justify-center">
-              <button
-                onClick={handleErrorModalClose}
-                className="mt-2 px-6 py-2 rounded-full text-white bg-[#EF4444] hover:bg-[#EF4444] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#EF4444] focus:ring-offset-2"
-                aria-label="Close error modal"
-              >
-                Close
-              </button>
+              
             </div>
           </div>
         </div>
@@ -759,13 +747,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
               <p className="text-center text-gray-600">{getAlreadySentMessage()}</p>
             </div>
             <div className="flex justify-center">
-              <button
-                onClick={handleAlreadySentModalClose}
-                className="mt-2 px-6 py-2 rounded-full text-white bg-[#EF4444] hover:bg-[#EF4444] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#EF4444] focus:ring-offset-2"
-                aria-label="Close already sent modal"
-              >
-                Close
-              </button>
+              
             </div>
           </div>
         </div>
@@ -959,12 +941,8 @@ const MemoizedMessage = memo(
                         : 'opacity-60 hover:opacity-90'
                     } ${
                       feedbackState[messageProvider][index] === ratingType && ratingType === 'thumbs-up'
-                        ? 'bg-green-100'
-                        : ''
                     } ${
                       feedbackState[messageProvider][index] === ratingType && ratingType === 'thumbs-down'
-                        ? 'bg-red-100'
-                        : ''
                     }`}
                     title={ratingType === 'thumbs-up' ? 'Helpful' : 'Not helpful'}
                     aria-label={ratingType === 'thumbs-up' ? 'Mark as helpful' : 'Mark as not helpful'}
