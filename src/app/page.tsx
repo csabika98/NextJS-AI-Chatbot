@@ -105,7 +105,7 @@ const HomePage = () => {
         <div className="flex md:hidden justify-center py-6 sm:py-8 shrink-0">
           <Image
             src="/logo.png"
-            alt="SkyeGPT logo"
+            alt="NextJS-AI-Chatbot logo"
             width={191}
             height={149}
             className="w-auto h-auto max-w-[150px] max-h-[100px] sm:max-h-[120px]"

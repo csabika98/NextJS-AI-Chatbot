@@ -514,7 +514,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         </label>
       </div>
       <div
-        className="chat-chat-messages flex flex-col gap-6 p-4 sm:p-6 md:p-8 overflow-y-auto scroll-smooth bg-white flex-shrink-0 rounded-[20px] h-[60vh] max-h-[90vh] min-h-0"
+        className="chatMessages flex flex-col gap-6 p-4 sm:p-6 md:p-8 overflow-y-auto scroll-smooth bg-white flex-shrink-0 rounded-[20px] h-[60vh] max-h-[90vh] min-h-0"
         ref={chatContainerRef}
       >
         {Array.isArray(messages) && messages.length > 0 ? (
@@ -559,7 +559,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
           <textarea
             ref={textareaRef}
             rows={1}
-            className="chat-chat-input-textarea border-none text-sm sm:text-base text-black resize-none bg-transparent w-full py-2 px-3 font-[Poppins] placeholder:text-gray-500 focus:outline-none"
+            className="chatinput-textarea border-none text-sm sm:text-base text-black resize-none bg-transparent w-full py-2 px-3 font-[Poppins] placeholder:text-gray-500 focus:outline-none"
             style={{ minHeight: '98px' }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -946,7 +946,6 @@ const MemoizedMessage = memo(
                   className="text-xs text-gray-600 hover:text-gray-900 hover:underline transition-colors duration-200"
                   title="Provide detailed feedback"
                   aria-label="Provide detailed feedback for this message"
-                  disabled={isFeedbackSubmitted}
                 >
                   GIVE FEEDBACK
                 </button>
