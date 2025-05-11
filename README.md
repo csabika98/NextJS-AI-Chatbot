@@ -1,7 +1,15 @@
 # Next.js Chatbot with local Ollama and OpenAI support with Tailwind
 
-This is a [Next.js](https://nextjs.org) chatbot application that integrates with the [Ollama](https://ollama.com/) API to provide an interactive chat experience. The app features a modern UI with real-time message streaming, Markdown-formatted bot responses, and support for customizable AI models. It is built with TypeScript, React, and Next.js, styled with Tailwind-inspired CSS, and uses `react-markdown` for rich text rendering.
+This is a [Next.js](https://nextjs.org) chatbot application that integrates with the [Ollama](https://ollama.com/) and OpenAI API 
 
+## New version
+![Provider](https://github.com/user-attachments/assets/fd268ce3-8ec6-461c-8c7e-d26d41e095f4)
+![Provider](https://github.com/user-attachments/assets/2b3c2fd1-aba6-4fe5-b315-d12adcf1bc51)
+![Provider](https://github.com/user-attachments/assets/54a6d6bd-b9d0-48b8-b67a-f9f16ff8d7bf)
+
+
+
+## Legacy version
 ![Provider](screenshots/12.png)
 ![Provider](screenshots/13.png)
 ![Provider](screenshots/14.png)
