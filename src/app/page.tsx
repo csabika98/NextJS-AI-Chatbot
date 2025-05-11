@@ -75,7 +75,7 @@ const HomePage = () => {
           <div className="w-full flex justify-center flex-shrink-0 px-4">
             <Image
               src="/logo.png"
-              alt="NextJS logo"
+              alt="NextJS-AI-Chatbot"
               width={191}
               height={149}
               className="object-contain w-auto h-full max-w-[60%] sm:max-w-[50%] md:max-w-[291px] max-h-[15vh] md:-mr-21"
