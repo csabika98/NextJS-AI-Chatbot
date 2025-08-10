@@ -1,9 +1,17 @@
 import { NextRequest } from 'next/server';
 import { OpenAI } from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+
+interface RequestBody {
+  model: string;
+  messages: ChatCompletionMessageParam[];
+  stream: boolean;
+  provider: 'openai' | 'ollama';
+}
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { model, messages, stream, provider, apiKey } = body;
+  const body = await req.json() as RequestBody;
+  const { model, messages, stream, provider } = body;
 
   if (!model || !messages || !Array.isArray(messages)) {
     return new Response(JSON.stringify({ error: 'Invalid request body' }), { status: 400 });
@@ -13,22 +21,24 @@ export async function POST(req: NextRequest) {
     if (provider === 'openai') {
       const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
 
-      const defaultModel = process.env.OPENAI_DEFAULT_MODEL;
+      const defaultModel = process.env.OPENAI_DEFAULT_MODEL || 'gpt-3.5-turbo';
+      const modelToUse = model || defaultModel;
+
       const streamResponse = await openai.chat.completions.create({
-        model: model || defaultModel,
+        model: modelToUse,
         messages,
         stream: true,
       });
 
       const encoder = new TextEncoder();
-      const stream = new ReadableStream({
+      const responseStream = new ReadableStream({
         async start(controller) {
           for await (const chunk of streamResponse) {
             if (chunk.choices[0]?.delta?.content) {
               controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ choices: [{ delta: { content: chunk.choices[0].delta.content } }] })}\n\n`
-                )
+                  encoder.encode(
+                      `data: ${JSON.stringify({ choices: [{ delta: { content: chunk.choices[0].delta.content } }] })}\n\n`
+                  )
               );
             }
           }
@@ -37,7 +47,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      return new Response(stream, {
+      return new Response(responseStream, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -64,11 +74,13 @@ export async function POST(req: NextRequest) {
         },
       });
     }
-  } catch (error: any) {
-    const errorMessage = error.message || 'Internal server error';
-    if (error.message?.includes('Ollama')) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    const errorCode = error instanceof Error && 'code' in error ? (error as { code: string }).code : undefined;
+
+    if (errorMessage.includes('Ollama')) {
       return new Response(JSON.stringify({ error: `Ollama service unavailable: ${errorMessage}` }), { status: 503 });
-    } else if (error.code === 'invalid_api_key') {
+    } else if (errorCode === 'invalid_api_key') {
       return new Response(JSON.stringify({ error: 'Invalid OpenAI API key' }), { status: 401 });
     } else {
       return new Response(JSON.stringify({ error: errorMessage }), { status: 500 });

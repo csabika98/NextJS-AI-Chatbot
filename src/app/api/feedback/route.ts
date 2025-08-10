@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-let feedbacks: any[] = [];
+interface FeedbackData {
+  message: string;
+  question?: string | null;
+  rating: 'thumbs-up' | 'thumbs-down';
+  feedbackText?: string | null;
+  operatingSystem?: string | null;
+  ipAddress: string;
+  timestamp: string;
+}
+
+interface RequestBody {
+  message: string;
+  question?: string;
+  rating: string;
+  feedbackText?: string;
+  operatingSystem?: string;
+}
+
+const feedbacks: FeedbackData[] = [];
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json() as RequestBody;
     const { message, question, rating, feedbackText, operatingSystem } = body;
 
     if (!message || !rating || !['thumbs-up', 'thumbs-down'].includes(rating)) {
@@ -13,10 +31,10 @@ export async function POST(req: NextRequest) {
 
     const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
 
-    const feedback = {
+    const feedback: FeedbackData = {
       message,
       question: question || null,
-      rating,
+      rating: rating as 'thumbs-up' | 'thumbs-down',
       feedbackText: feedbackText || null,
       operatingSystem: operatingSystem || null,
       ipAddress,
@@ -28,17 +46,19 @@ export async function POST(req: NextRequest) {
     console.log('Received feedback:', feedback);
 
     return NextResponse.json({ message: 'Feedback received successfully', feedback }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error processing feedback:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     return NextResponse.json({ feedbacks, total: feedbacks.length }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error retrieving feedbacks:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
