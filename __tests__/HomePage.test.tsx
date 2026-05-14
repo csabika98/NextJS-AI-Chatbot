@@ -14,21 +14,23 @@ global.fetch = vi.fn(() =>
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  process.env.NEXT_PUBLIC_OLLAMA_HOST = 'http://localhost:11434';
+  process.env.NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME = 'llama3.2';
 });
 
 describe('HomePage', () => {
-    it('renders without crashing', () => {
+    it('renders without crashing', async () => {
         // for debugging purposes
         //console.log('Rendering HomePage component...');
-        const view = render(<HomePage />);
+        render(<HomePage />);
         //console.log('Rendered component:', view.container.innerHTML);
-        expect(screen.getByText('Chatbot')).toBeInTheDocument();
+        expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
     });
 
-    it('displays the logo', () => {
+    it('displays the logo', async () => {
         //console.log('Testing logo display...');
         render(<HomePage />);
-        const logo = screen.getByAltText('logo');
+        const logo = await screen.findByAltText('NextJS-AI-Chatbot logo');
         //console.log('Found logo element:', logo);
         expect(logo).toBeInTheDocument();
     });

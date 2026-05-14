@@ -6,16 +6,15 @@
     "dev": "next dev -p 5173 --turbopack",
     "build": "next build",
     "start": "next start -p 5173",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "vitest run"
   },
   "dependencies": {
-    "next": "^15.4.6",
+    "next": "^16.2.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
-    "react-syntax-highlighter": "^16.0.0",
-    "refractor": "^4.9.0",
+    "react-syntax-highlighter": "^16.1.1",
     "remark-breaks": "^4.0.0"
   },
   "devDependencies": {
@@ -30,7 +29,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^4.4.1",
     "eslint": "^9",
-    "eslint-config-next": "15.3.1",
+    "eslint-config-next": "^16.2.6",
     "jsdom": "^26.1.0",
     "lodash": "^4.17.21",
     "openai": "^4.96.0",
@@ -40,5 +39,8 @@
     "typescript": "^5",
     "vite": ">=6.4.2",
     "vitest": "^3.1.2"
+  },
+  "overrides": {
+    "postcss": "^8.5.14"
   }
 }

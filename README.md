@@ -1,6 +1,6 @@
-# Next.js Chatbot with local Ollama and OpenAI support with Tailwind
+# Next.js Chatbot with local Ollama, OpenAI, and DeepSeek support with Tailwind
 
-This is a [Next.js](https://nextjs.org) chatbot application that integrates with the [Ollama](https://ollama.com/) and OpenAI API 
+This is a [Next.js](https://nextjs.org) chatbot application that integrates with [Ollama](https://ollama.com/), the OpenAI API, and the DeepSeek API.
 
 ## New version
 ![Provider](https://github.com/user-attachments/assets/fd268ce3-8ec6-461c-8c7e-d26d41e095f4)
@@ -17,7 +17,7 @@ This is a [Next.js](https://nextjs.org) chatbot application that integrates with
 
 ## Features
 
-- **Select Provider**: You can select OpenAI (API_key needed) or local Ollama config
+- **Select Provider**: You can select local Ollama, OpenAI, or DeepSeek.
 - **AI-Powered Chat**: Communicates with an Ollama server to generate responses using models like `deepseek-coder-v2:latest`.
 - **Real-Time Streaming**: Displays bot responses as they stream from the Ollama API.
 - **Markdown Formatting**: Renders bot messages with Markdown support for headings, lists, code blocks, tables, bold/italic text, and links.
@@ -90,8 +90,7 @@ Key dependencies include:
 
 ### 4. Configure Environment Variables
 
-Create a `.env` file in the project root to configure the Ollama server host:
-Also you can set the OpenAI model + your API_KEY
+Create a `.env` file in the project root to configure the providers you want to use.
 
 These two are mandatory for Ollama:
 
@@ -100,11 +99,18 @@ NEXT_PUBLIC_OLLAMA_HOST=http://localhost:11434
 NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME=deepseek-coder-v2:latest
 ```
 
-These two are mandatory for OpenAI
+These two are mandatory for OpenAI. Keep `OPENAI_API_KEY` server-only; do not prefix it with `NEXT_PUBLIC_`.
 
 ```env
 NEXT_PUBLIC_OPENAI_DEFAULT_MODEL=gpt-4.1-2025-04-14
-NEXT_PUBLIC_OPENAI_API_KEY=<your_key>
+OPENAI_API_KEY=<your_openai_key>
+```
+
+These are required for DeepSeek. The model defaults to `deepseek-v4-flash` if `NEXT_PUBLIC_DEEPSEEK_DEFAULT_MODEL` is omitted.
+
+```env
+NEXT_PUBLIC_DEEPSEEK_DEFAULT_MODEL=deepseek-v4-flash
+DEEPSEEK_API_KEY=<your_deepseek_key>
 ```
 
 You can combine them:
@@ -113,7 +119,9 @@ You can combine them:
 NEXT_PUBLIC_OLLAMA_HOST=http://localhost:11434
 NEXT_PUBLIC_CHATBOT_OLLAMA_MODEL_NAME=deepseek-coder-v2:latest
 NEXT_PUBLIC_OPENAI_DEFAULT_MODEL=gpt-4.1-2025-04-14
-NEXT_PUBLIC_OPENAI_API_KEY=
+OPENAI_API_KEY=
+NEXT_PUBLIC_DEEPSEEK_DEFAULT_MODEL=deepseek-v4-flash
+DEEPSEEK_API_KEY=
 ```
 
 If using a different host or port, update the value accordingly.

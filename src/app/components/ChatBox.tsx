@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import Image from 'next/image';
-import { createUserMessage, createBotMessage, Message } from '@/app/utils/MessageManager';
+import { createUserMessage, createBotMessage, Message, Provider } from '@/app/utils/MessageManager';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import oneDark from 'react-syntax-highlighter/dist/esm/styles/prism/one-dark';
@@ -108,8 +108,10 @@ export interface ChatBoxProps {
     title: string;
     askEndpoint: string;
     model: string;
-    provider: 'ollama' | 'openai';
-    setProvider: React.Dispatch<React.SetStateAction<'ollama' | 'openai'>>;
+    provider: Provider;
+    setProvider: React.Dispatch<React.SetStateAction<Provider>>;
+    availableProviders: Provider[];
+    providerLabels: Record<Provider, string>;
     messages: Message[];
     setMessages: (messages: Message[]) => void;
     className: string;
@@ -120,6 +122,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                                              model,
                                              provider,
                                              setProvider,
+                                             availableProviders,
+                                             providerLabels,
                                              messages,
                                              setMessages,
                                              className,
@@ -134,19 +138,15 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     const [feedbackError, setFeedbackError] = useState<string>('');
     const [submitError, setSubmitError] = useState<string>('');
     const [ratingError, setRatingError] = useState<{ [key: number]: string }>({});
-    const [feedbackState, setFeedbackState] = useState<{
-        ollama: { [key: number]: 'thumbs-up' | 'thumbs-down' | null };
-        openai: { [key: number]: 'thumbs-up' | 'thumbs-down' | null };
-    }>({
+    const [feedbackState, setFeedbackState] = useState<Record<Provider, { [key: number]: 'thumbs-up' | 'thumbs-down' | null }>>({
         ollama: {},
         openai: {},
+        deepseek: {},
     });
-    const [submittedFeedback, setSubmittedFeedback] = useState<{
-        ollama: { [key: number]: boolean };
-        openai: { [key: number]: boolean };
-    }>({
+    const [submittedFeedback, setSubmittedFeedback] = useState<Record<Provider, { [key: number]: boolean }>>({
         ollama: {},
         openai: {},
+        deepseek: {},
     });
     const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -154,6 +154,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const wasNearBottomRef = useRef<boolean>(true);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const activeRequestIdRef = useRef(0);
 
     const scrollToBottom = useCallback(() => {
         const debouncedScroll = debounce(() => {
@@ -195,12 +197,22 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    const handleProviderChange = (newProvider: 'ollama' | 'openai') => {
+    const handleProviderChange = (newProvider: Provider) => {
+        abortControllerRef.current?.abort();
+        activeRequestIdRef.current += 1;
+        setIsLoading(false);
         setProvider(newProvider);
     };
 
     const sendMessage = useCallback(async () => {
         if (!input.trim()) return;
+
+        abortControllerRef.current?.abort();
+        const requestId = activeRequestIdRef.current + 1;
+        activeRequestIdRef.current = requestId;
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+        const isActiveRequest = () => activeRequestIdRef.current === requestId && !abortController.signal.aborted;
 
         const formattedInput = preprocessUserText(input);
         const userMessage = createUserMessage(formattedInput);
@@ -222,10 +234,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                 })),
             ];
 
-            const initialBotMessage = createBotMessage('', provider, model);
-            const newMessagesWithBot = [...newMessages, initialBotMessage];
-            setMessages(newMessagesWithBot);
-
             const requestBody = {
                 model,
                 messages: messagesPayload,
@@ -237,6 +245,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),
+                signal: abortController.signal,
             });
 
             if (!response.ok) {
@@ -250,7 +259,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                 if (data.message && data.message.content) {
                     const botMessage = createBotMessage(data.message.content, provider, model);
                     const updatedMessages = [...newMessages, botMessage];
-                    setMessages(updatedMessages);
+                    if (isActiveRequest()) {
+                        setMessages(updatedMessages);
+                    }
                 }
                 setIsLoading(false);
                 return;
@@ -264,10 +275,16 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
             while (true) {
                 const { value, done } = await reader.read();
+                if (!isActiveRequest()) {
+                    break;
+                }
+
                 if (done) {
                     const botMessage = createBotMessage(fullMessage || 'No response received', provider, model);
                     const updatedMessages = [...newMessages, botMessage];
-                    setMessages(updatedMessages);
+                    if (isActiveRequest()) {
+                        setMessages(updatedMessages);
+                    }
                     break;
                 }
 
@@ -278,7 +295,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
                 for (const line of lines) {
                     if (line.trim()) {
-                        if (provider === 'openai' && line.startsWith('data: ')) {
+                        if ((provider === 'openai' || provider === 'deepseek') && line.startsWith('data: ')) {
                             const data = line.slice(6);
                             if (data === '[DONE]') break;
                             try {
@@ -286,7 +303,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                                 if (parsed.choices && parsed.choices[0].delta.content) {
                                     fullMessage += parsed.choices[0].delta.content;
                                     const botMessage = createBotMessage(fullMessage, provider, model);
-                                    setMessages([...newMessages, botMessage]);
+                                    if (isActiveRequest()) {
+                                        setMessages([...newMessages, botMessage]);
+                                    }
                                 }
                             } catch {
                                 // Ignore parse errors and continue
@@ -298,7 +317,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                                 if (parsed.message && parsed.message.content) {
                                     fullMessage += parsed.message.content;
                                     const botMessage = createBotMessage(fullMessage, provider, model);
-                                    setMessages([...newMessages, botMessage]);
+                                    if (isActiveRequest()) {
+                                        setMessages([...newMessages, botMessage]);
+                                    }
                                 }
                             } catch {
                                 // Ignore parse errors and continue
@@ -309,11 +330,22 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                 }
             }
         } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                return;
+            }
+
+            if (!isActiveRequest()) {
+                return;
+            }
+
             const errorMessage = createBotMessage(`Error: ${(error as Error).message}`, provider, model);
             const updatedMessages = [...newMessages, errorMessage];
             setMessages(updatedMessages);
         } finally {
-            setIsLoading(false);
+            if (isActiveRequest()) {
+                setIsLoading(false);
+                abortControllerRef.current = null;
+            }
         }
     }, [input, messages, provider, model, setMessages, askEndpoint]);
 
@@ -506,6 +538,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         return feedback === 'thumbs-down' ? 'Issue report already sent, Thanks' : 'Feedback already sent, Thanks';
     }, [activeMessageIndex, feedbackState, provider]);
 
+    const latestMessage = messages[messages.length - 1];
+    const isWaitingForFirstResponse = isLoading && (!latestMessage || latestMessage.sender === 'user');
+
     return (
         <div className={`flex flex-col h-full ${className}`}>
             <div className="flex flex-col gap-4 p-4">
@@ -513,11 +548,14 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                     Provider:
                     <select
                         value={provider}
-                        onChange={(e) => handleProviderChange(e.target.value as 'ollama' | 'openai')}
+                        onChange={(e) => handleProviderChange(e.target.value as Provider)}
                         className="ml-2 p-1 border rounded w-full max-w-[150px]"
                     >
-                        <option value="ollama">Ollama</option>
-                        <option value="openai">OpenAI</option>
+                        {availableProviders.map((providerOption) => (
+                            <option key={providerOption} value={providerOption}>
+                                {providerLabels[providerOption]}
+                            </option>
+                        ))}
                     </select>
                 </label>
             </div>
@@ -547,7 +585,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                         <span>Start the conversation below!</span>
                     </div>
                 )}
-                {isLoading && (
+                {isWaitingForFirstResponse && (
                     <div className="self-start max-w-[90%] sm:max-w-[80%] flex flex-col">
                         <div className="p-4 sm:p-5 md:p-6 rounded-[30px] bg-[#ececec] text-black rounded-tr-[30px] rounded-bl-[0] shadow-sm">
                             <div className="animate-pulse flex space-x-2">
@@ -591,7 +629,6 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                         alt="Send Button"
                         width={120}
                         height={120}
-                        quality={100}
                         priority
                         className="object-contain"
                     />
@@ -768,15 +805,9 @@ interface MemoizedMessageProps {
     msg: Message;
     index: number;
     isLoading: boolean;
-    provider: string;
-    feedbackState: {
-        ollama: { [key: number]: 'thumbs-up' | 'thumbs-down' | null };
-        openai: { [key: number]: 'thumbs-up' | 'thumbs-down' | null };
-    };
-    submittedFeedback: {
-        ollama: { [key: number]: boolean };
-        openai: { [key: number]: boolean };
-    };
+    provider: Provider;
+    feedbackState: Record<Provider, { [key: number]: 'thumbs-up' | 'thumbs-down' | null }>;
+    submittedFeedback: Record<Provider, { [key: number]: boolean }>;
     ratingError: { [key: number]: string };
     handleFeedback: (messageIndex: number, feedback: 'thumbs-up' | 'thumbs-down') => void;
     handleFeedbackPromptClick: (messageIndex: number) => void;
@@ -796,8 +827,9 @@ const MemoizedMessage = memo<MemoizedMessageProps>(
          handleFeedbackPromptClick,
          messages,
      }) => {
-        const messageProvider = (msg.provider || provider) as 'ollama' | 'openai';
+        const messageProvider = msg.provider || provider;
         const isFeedbackSubmitted = submittedFeedback[messageProvider][index];
+        const isLatestLoadingBotMessage = isLoading && index === messages.length - 1 && msg.sender === 'bot';
 
         const getMarkdownComponents = (sender: 'user' | 'bot') => ({
             ol: (props: React.HTMLAttributes<HTMLOListElement>) => (
@@ -913,11 +945,15 @@ const MemoizedMessage = memo<MemoizedMessageProps>(
                     <div className="self-start max-w-[90%] sm:max-w-[80%] flex flex-col">
                         <div className="p-4 sm:p-5 md:p-6 rounded-[30px] transition-opacity duration-300 bg-[#ececec] text-black rounded-bl-[0] shadow-sm">
                             <div className="flex flex-col max-w-full break-words">
-                                <div className="text-xs text-gray-600 mb-2">
-                                    {msg.provider === 'openai'
-                                        ? `OpenAI (${msg.model || 'Unknown'})`
-                                        : `Ollama (${msg.model || 'Unknown'})`}
-                                </div>
+                                {!isLatestLoadingBotMessage && (
+                                    <div className="text-xs text-gray-600 mb-2">
+                                        {msg.provider === 'openai'
+                                            ? `OpenAI (${msg.model || 'Unknown'})`
+                                            : msg.provider === 'deepseek'
+                                                ? `DeepSeek (${msg.model || 'Unknown'})`
+                                                : `Ollama (${msg.model || 'Unknown'})`}
+                                    </div>
+                                )}
                                 <ReactMarkdown
                                     remarkPlugins={[remarkBreaks, remarkGfm]}
                                     components={getMarkdownComponents('bot')}
@@ -992,10 +1028,10 @@ const MemoizedMessage = memo<MemoizedMessageProps>(
             prevProps.index === nextProps.index &&
             prevProps.isLoading === nextProps.isLoading &&
             prevProps.provider === nextProps.provider &&
-            prevProps.feedbackState[(prevProps.msg.provider || prevProps.provider) as 'ollama' | 'openai'][prevProps.index] ===
-            nextProps.feedbackState[(nextProps.msg.provider || nextProps.provider) as 'ollama' | 'openai'][nextProps.index] &&
-            prevProps.submittedFeedback[(prevProps.msg.provider || prevProps.provider) as 'ollama' | 'openai'][prevProps.index] ===
-            nextProps.submittedFeedback[(nextProps.msg.provider || nextProps.provider) as 'ollama' | 'openai'][nextProps.index] &&
+            prevProps.feedbackState[prevProps.msg.provider || prevProps.provider][prevProps.index] ===
+            nextProps.feedbackState[nextProps.msg.provider || nextProps.provider][nextProps.index] &&
+            prevProps.submittedFeedback[prevProps.msg.provider || prevProps.provider][prevProps.index] ===
+            nextProps.submittedFeedback[nextProps.msg.provider || nextProps.provider][nextProps.index] &&
             prevProps.ratingError[prevProps.index] === nextProps.ratingError[nextProps.index]
         );
     }

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Provider } from '@/app/utils/MessageManager';
+
+const providers: Provider[] = ['ollama', 'openai', 'deepseek'];
 
 interface RatingData {
   message_index: number;
   rating: 'thumbs-up' | 'thumbs-down';
-  provider: 'ollama' | 'openai';
+  provider: Provider;
   ipAddress: string;
   timestamp: string;
 }
@@ -21,7 +24,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json() as RequestBody;
     const { message_index, rating, provider } = body;
 
-    if (!Number.isInteger(message_index) || !rating || !['thumbs-up', 'thumbs-down'].includes(rating) || !['ollama', 'openai'].includes(provider)) {
+    if (!Number.isInteger(message_index) || !rating || !['thumbs-up', 'thumbs-down'].includes(rating) || !providers.includes(provider as Provider)) {
       return NextResponse.json({ error: 'Invalid rating data' }, { status: 400 });
     }
 
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
     const ratingData: RatingData = {
       message_index,
       rating: rating as 'thumbs-up' | 'thumbs-down',
-      provider: provider as 'ollama' | 'openai',
+      provider: provider as Provider,
       ipAddress,
       timestamp: new Date().toISOString(),
     };
